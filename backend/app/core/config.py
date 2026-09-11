@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     _DEFAULT_DB_PATH: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "gkce_exam_cell.db")).replace("\\", "/")
     DATABASE_URL: str = f"sqlite:///{_DEFAULT_DB_PATH}"
     
-    BACKEND_CORS_ORIGINS: List[str] = [
+    BACKEND_CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:8000",
