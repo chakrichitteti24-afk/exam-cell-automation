@@ -94,7 +94,7 @@ export default function InvigilatorRoomsPage() {
       </div>
 
       {/* Room Selector with Security Indicators */}
-      <div className="flex flex-wrap items-center gap-3 p-4 rounded-2xl border border-slate-200 bg-white shadow-xs">
+      <div className="flex flex-wrap items-center gap-3 p-4 rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 shadow-xs">
         <span className="text-xs font-bold text-slate-700">
           Select Examination Hall:
         </span>
@@ -128,7 +128,7 @@ export default function InvigilatorRoomsPage() {
 
       {/* Authorization Check Enforcement */}
       {!isAccessDenied && matrix ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+        <div className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-5 shadow-xs">
           <div className="flex items-center gap-2 mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs">
             <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
             <span>

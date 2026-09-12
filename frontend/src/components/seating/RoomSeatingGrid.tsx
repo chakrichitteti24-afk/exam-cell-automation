@@ -211,7 +211,7 @@ export function RoomSeatingGrid({
       <div
         key={bench.benchNumber}
         className={cn(
-          "relative rounded-2xl border bg-white transition-all shadow-xs flex flex-col justify-between h-full min-h-[160px] overflow-hidden",
+          "relative rounded-2xl border bg-white/60 backdrop-blur-xl border-white/60 transition-all shadow-xs flex flex-col justify-between h-full min-h-[160px] overflow-hidden",
           isBenchHighlighted
             ? "ring-2 ring-blue-600 shadow-md scale-[1.02] border-blue-500 z-10"
             : "border-slate-200/90 hover:border-slate-300 hover:shadow-sm"
@@ -223,7 +223,7 @@ export function RoomSeatingGrid({
             <span className="font-extrabold text-slate-800 font-mono tracking-tight text-[11px]">
               DESK {String(bench.benchNumber).padStart(2, "0")}
             </span>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-white border border-slate-200 text-slate-500 font-semibold">
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-white/60 backdrop-blur-xl border-white/60 border border-slate-200 text-slate-500 font-semibold">
               R{bench.rowIndex ?? Math.floor((bench.benchNumber - 1) / 4) + 1}·C
               {bench.colIndex ?? (((bench.benchNumber - 1) % 4) + 1)}
             </span>
@@ -292,7 +292,7 @@ export function RoomSeatingGrid({
   return (
     <div className="space-y-5">
       {/* ── Top Controls & Statistics Banner ── */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white border border-slate-200 text-slate-900 p-5 rounded-2xl shadow-xs">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white/60 backdrop-blur-xl border-white/60 border border-slate-200 text-slate-900 p-5 rounded-2xl shadow-xs">
         <div>
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-1 rounded-xl bg-blue-600 text-white text-xs font-black tracking-wide uppercase shadow-xs">
@@ -331,7 +331,7 @@ export function RoomSeatingGrid({
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition text-xs",
                 viewMode === "GRID"
-                  ? "bg-white text-blue-700 shadow-xs border border-slate-200"
+                  ? "bg-white/60 backdrop-blur-xl border-white/60 text-blue-700 shadow-xs border border-slate-200"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               )}
               title="Classroom 2D Floorplan (4 Columns × 6 Rows)"
@@ -344,7 +344,7 @@ export function RoomSeatingGrid({
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition text-xs",
                 viewMode === "COLUMN_WISE"
-                  ? "bg-white text-blue-700 shadow-xs border border-slate-200"
+                  ? "bg-white/60 backdrop-blur-xl border-white/60 text-blue-700 shadow-xs border border-slate-200"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               )}
               title="View Column by Column"
@@ -357,7 +357,7 @@ export function RoomSeatingGrid({
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition text-xs",
                 viewMode === "ROW_WISE"
-                  ? "bg-white text-blue-700 shadow-xs border border-slate-200"
+                  ? "bg-white/60 backdrop-blur-xl border-white/60 text-blue-700 shadow-xs border border-slate-200"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               )}
               title="View Row by Row"
@@ -375,7 +375,7 @@ export function RoomSeatingGrid({
               placeholder="Search candidate..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 pr-7 py-1.5 text-xs bg-white text-slate-900 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 w-44 shadow-2xs"
+              className="pl-8 pr-7 py-1.5 text-xs bg-white/60 backdrop-blur-xl border-white/60 text-slate-900 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 w-44 shadow-2xs"
             />
             {searchTerm && (
               <button
@@ -390,7 +390,7 @@ export function RoomSeatingGrid({
           {/* Print Button */}
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition"
             title="Print Door Seating Chart"
           >
             <Printer className="h-3.5 w-3.5 text-slate-500" />
@@ -400,7 +400,7 @@ export function RoomSeatingGrid({
       </div>
 
       {/* ── Interactive Department Legend & Filters Ribbon ── */}
-      <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="p-3.5 rounded-2xl bg-white/60 backdrop-blur-xl border-white/60 border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mr-1">
             <Filter className="h-3.5 w-3.5" /> Filter Branch:
@@ -430,7 +430,7 @@ export function RoomSeatingGrid({
                   "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition border",
                   isSelected
                     ? `${theme.badge} shadow-xs`
-                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                    : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 border-slate-200 hover:bg-slate-50"
                 )}
               >
                 <span className={`h-2 w-2 rounded-full ${theme.dot}`} />
@@ -485,7 +485,7 @@ export function RoomSeatingGrid({
       )}
 
       {/* ── Floorplan Architectural Container ── */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-xs space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-4 sm:p-6 shadow-xs space-y-4">
         {/* 1. Chalkboard & Teacher Podium Area */}
         <div className="relative rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-3.5 text-center shadow-sm border border-slate-700 overflow-hidden">
           <div className="absolute inset-x-0 top-0 h-0.5 bg-blue-500" />
@@ -673,7 +673,7 @@ export function RoomSeatingGrid({
       {/* ── Candidate Inspector Modal with Bench Partner Verification ── */}
       {selectedStudent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5">
+          <div className="bg-white/60 backdrop-blur-xl border-white/60 border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5">
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-slate-100 pb-4">
               <div>
@@ -743,7 +743,7 @@ export function RoomSeatingGrid({
                     Zero Collision
                   </span>
                 </div>
-                <div className="p-2.5 rounded-xl bg-white border border-emerald-200/60 flex items-center justify-between">
+                <div className="p-2.5 rounded-xl bg-white/60 backdrop-blur-xl border-white/60 border border-emerald-200/60 flex items-center justify-between">
                   <div>
                     <div className="font-bold text-slate-900">{selectedBenchPartner.studentName}</div>
                     <div className="font-mono text-[11px] text-slate-500">

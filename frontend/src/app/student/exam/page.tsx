@@ -46,12 +46,12 @@ export default function StudentExamPage() {
 
       <div className="space-y-4">
         {loading ? (
-          <div className="p-12 text-center text-xs text-slate-400 rounded-2xl border border-slate-200 bg-white shadow-xs">
+          <div className="p-12 text-center text-xs text-slate-400 rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 shadow-xs">
             Loading exam timetable...
           </div>
         ) : deskSlip ? (
           /* Allocated active exam */
-          <div className="rounded-2xl border-2 border-blue-600 bg-white p-5 shadow-xs space-y-3">
+          <div className="rounded-2xl border-2 border-blue-600 bg-white/60 backdrop-blur-xl border-white/60 p-5 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
               <span className="px-2.5 py-0.5 rounded bg-blue-600 text-white text-[10px] font-mono font-bold uppercase shadow-xs">
                 {deskSlip.subject_code} • Active Exam
@@ -107,7 +107,7 @@ export default function StudentExamPage() {
             {exams.map((exam) => (
               <div
                 key={exam.id}
-                className="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs"
+                className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs"
               >
                 <div>
                   <div className="flex items-center gap-2">

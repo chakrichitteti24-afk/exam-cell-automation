@@ -98,7 +98,7 @@ export function RootSidebar({
       {/* Sidebar Container */}
       <aside
         className={cn(
-          "fixed top-0 md:top-16 bottom-0 left-0 z-50 md:z-40 flex flex-col border-r border-slate-200 bg-white transition-all duration-300 shadow-xl md:shadow-2xs",
+          "fixed top-0 md:top-16 bottom-0 left-0 z-50 md:z-40 flex flex-col border-r border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 transition-all duration-300 shadow-xl md:shadow-2xs",
           collapsed ? "w-64 md:w-20" : "w-64",
           isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}

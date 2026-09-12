@@ -74,7 +74,7 @@ export function BentoCard({
   return (
     <div
       className={cn(
-        "group relative flex flex-col rounded-2xl bg-white border border-slate-200/90 p-5 md:p-6",
+        "group relative flex flex-col rounded-2xl bg-white/60 backdrop-blur-xl border-white/60 border border-slate-200/90 p-5 md:p-6",
         "shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200",
         colSpanClass,
         rowSpanClass,

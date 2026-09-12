@@ -122,7 +122,7 @@ export function Navbar({
               <button
                 onClick={handleLogout}
                 title="Secure Sign Out"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-rose-50 hover:border-rose-200 text-slate-600 hover:text-rose-600 text-xs font-medium transition shadow-2xs"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 hover:bg-rose-50 hover:border-rose-200 text-slate-600 hover:text-rose-600 text-xs font-medium transition shadow-2xs"
               >
                 <LogOut className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Sign Out</span>

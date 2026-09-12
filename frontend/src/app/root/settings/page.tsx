@@ -48,7 +48,7 @@ export default function RootSettingsPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Branch Mixing Algorithm Configuration */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
+        <div className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-5 shadow-xs space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
             <Sliders className="h-4 w-4 text-blue-600" />
             <h2 className="text-sm font-bold text-slate-900">
@@ -101,7 +101,7 @@ export default function RootSettingsPage() {
         </div>
 
         {/* Room & Bench Defaults */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
+        <div className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-5 shadow-xs space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
             <Layers className="h-4 w-4 text-emerald-600" />
             <h2 className="text-sm font-bold text-slate-900">
@@ -164,7 +164,7 @@ export default function RootSettingsPage() {
         </div>
 
         {/* Institution Details */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
+        <div className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-5 shadow-xs space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
             <Building className="h-4 w-4 text-purple-600" />
             <h2 className="text-sm font-bold text-slate-900">

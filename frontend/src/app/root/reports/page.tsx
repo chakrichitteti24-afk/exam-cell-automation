@@ -102,7 +102,7 @@ export default function RootReportsPage() {
       </div>
 
       {/* Selectors Bar */}
-      <div className="flex flex-wrap items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs print:hidden">
+      <div className="flex flex-wrap items-center gap-4 bg-white/60 backdrop-blur-xl border-white/60 p-4 rounded-2xl border border-slate-200 shadow-xs print:hidden">
         <div>
           <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">
             Select Examination
@@ -147,7 +147,7 @@ export default function RootReportsPage() {
           className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
             activeReport === "ROOM"
               ? "bg-blue-700 text-white shadow-xs"
-              : "bg-white text-slate-700 hover:text-slate-900 border border-slate-300 hover:bg-slate-50"
+              : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 hover:text-slate-900 border border-slate-300 hover:bg-slate-50"
           }`}
         >
           Room-Wise Seating Chart (Door Notice)
@@ -157,7 +157,7 @@ export default function RootReportsPage() {
           className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
             activeReport === "INVIGILATOR"
               ? "bg-blue-700 text-white shadow-xs"
-              : "bg-white text-slate-700 hover:text-slate-900 border border-slate-300 hover:bg-slate-50"
+              : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 hover:text-slate-900 border border-slate-300 hover:bg-slate-50"
           }`}
         >
           Invigilator Duty Roster
@@ -167,7 +167,7 @@ export default function RootReportsPage() {
           className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
             activeReport === "DESK_SLIPS"
               ? "bg-blue-700 text-white shadow-xs"
-              : "bg-white text-slate-700 hover:text-slate-900 border border-slate-300 hover:bg-slate-50"
+              : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 hover:text-slate-900 border border-slate-300 hover:bg-slate-50"
           }`}
         >
           Student Desk Slips (Batch)
@@ -175,7 +175,7 @@ export default function RootReportsPage() {
       </div>
 
       {/* Printable Sheet Canvas */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-xs print:border-none print:shadow-none print:p-0">
+      <div className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-8 shadow-xs print:border-none print:shadow-none print:p-0">
         {activeReport === "ROOM" && (
           <div className="space-y-6">
             {/* Academic Header for Door Notice */}
@@ -327,7 +327,7 @@ export default function RootReportsPage() {
                 doorNotice.students.slice(0, 16).map((st, idx) => (
                   <div
                     key={idx}
-                    className="p-3 rounded-xl border border-slate-200 bg-white hover:border-blue-300 shadow-2xs space-y-1 text-center"
+                    className="p-3 rounded-xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 hover:border-blue-300 shadow-2xs space-y-1 text-center"
                   >
                     <div className="text-[10px] font-bold text-slate-400">
                       GKCE EXAM CELL

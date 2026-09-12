@@ -23,7 +23,7 @@ export default function InvigilatorLayout({
         <Navbar />
 
         {/* Invigilator Sub-Header Navigation */}
-        <div className="border-b border-slate-200 bg-white">
+        <div className="border-b border-slate-200 bg-white/60 backdrop-blur-xl border-white/60">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center font-bold text-xs">

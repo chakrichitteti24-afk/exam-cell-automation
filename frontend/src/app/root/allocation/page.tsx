@@ -269,14 +269,14 @@ export default function RootAllocationPage() {
         <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={handleReset}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-rose-50 text-slate-700 hover:text-rose-600 hover:border-rose-300 text-xs font-semibold border border-slate-300 shadow-2xs transition"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/60 backdrop-blur-xl border-white/60 hover:bg-rose-50 text-slate-700 hover:text-rose-600 hover:border-rose-300 text-xs font-semibold border border-slate-300 shadow-2xs transition"
           >
             <RotateCcw className="h-3.5 w-3.5" />
             <span>Reset to NULL</span>
           </button>
           <Link
             href="/root/reports"
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-300 shadow-2xs transition"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/60 backdrop-blur-xl border-white/60 hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-300 shadow-2xs transition"
           >
             <FileSpreadsheet className="h-3.5 w-3.5 text-slate-500" />
             <span>Door Notices</span>
@@ -294,7 +294,7 @@ export default function RootAllocationPage() {
       {/* Control Panel Bento Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left: Configuration Form (Bento Card 1) */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
+        <div className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-5 shadow-xs space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
             <Sliders className="h-4 w-4 text-slate-700" />
             <h2 className="text-sm font-bold text-slate-900">
@@ -355,7 +355,7 @@ export default function RootAllocationPage() {
                       setExamSubdivision(found.exam_subdivision as "MID_1" | "MID_2" | "REGULAR" | "SUPPLEMENTARY");
                     }
                   }}
-                  className="mt-1 w-full p-2.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 focus:ring-1 focus:ring-slate-400 focus:outline-none"
+                  className="mt-1 w-full p-2.5 rounded-xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 font-medium text-slate-800 focus:ring-1 focus:ring-slate-400 focus:outline-none"
                 >
                   {exams.map((exam) => (
                     <option key={exam.id} value={exam.id}>
@@ -403,7 +403,7 @@ export default function RootAllocationPage() {
                   className={`p-2.5 rounded-xl text-left border transition ${
                     examType === "MID"
                       ? "bg-blue-700 text-white border-blue-700 shadow-xs"
-                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                      : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 border-slate-200 hover:bg-slate-100"
                   }`}
                 >
                   <div className="font-bold text-[11px] flex items-center justify-between">
@@ -424,7 +424,7 @@ export default function RootAllocationPage() {
                   className={`p-2.5 rounded-xl text-left border transition ${
                     examType === "SEM"
                       ? "bg-purple-700 text-white border-purple-700 shadow-xs"
-                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                      : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 border-slate-200 hover:bg-slate-100"
                   }`}
                 >
                   <div className="font-bold text-[11px] flex items-center justify-between">
@@ -451,7 +451,7 @@ export default function RootAllocationPage() {
                       className={`py-1.5 px-2.5 rounded-lg text-left border transition ${
                         examSubdivision === "MID_1"
                           ? "bg-blue-600 text-white border-blue-600 font-semibold shadow-xs"
-                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                          : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 border-slate-200 hover:bg-slate-100"
                       }`}
                     >
                       <div className="text-[11px] font-bold">Mid-1 (MID_1)</div>
@@ -463,7 +463,7 @@ export default function RootAllocationPage() {
                       className={`py-1.5 px-2.5 rounded-lg text-left border transition ${
                         examSubdivision === "MID_2"
                           ? "bg-blue-600 text-white border-blue-600 font-semibold shadow-xs"
-                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                          : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 border-slate-200 hover:bg-slate-100"
                       }`}
                     >
                       <div className="text-[11px] font-bold">Mid-2 (MID_2)</div>
@@ -478,7 +478,7 @@ export default function RootAllocationPage() {
                       className={`py-1.5 px-2.5 rounded-lg text-left border transition ${
                         examSubdivision === "REGULAR"
                           ? "bg-purple-600 text-white border-purple-600 font-semibold shadow-xs"
-                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                          : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 border-slate-200 hover:bg-slate-100"
                       }`}
                     >
                       <div className="text-[11px] font-bold">Regular (REGULAR)</div>
@@ -490,7 +490,7 @@ export default function RootAllocationPage() {
                       className={`py-1.5 px-2.5 rounded-lg text-left border transition ${
                         examSubdivision === "SUPPLEMENTARY"
                           ? "bg-purple-600 text-white border-purple-600 font-semibold shadow-xs"
-                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                          : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 border-slate-200 hover:bg-slate-100"
                       }`}
                     >
                       <div className="text-[11px] font-bold">Supply (SUPPLEMENTARY)</div>
@@ -551,7 +551,7 @@ export default function RootAllocationPage() {
               <select
                 value={arrangementDirection}
                 onChange={(e) => setArrangementDirection(e.target.value as "COLUMN_WISE" | "ROW_WISE" | "SNAKE_COLUMN" | "SNAKE_ROW")}
-                className="w-full p-2 rounded-xl border border-slate-200 bg-white font-medium text-xs text-slate-800 focus:ring-1 focus:ring-slate-400 focus:outline-none"
+                className="w-full p-2 rounded-xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 font-medium text-xs text-slate-800 focus:ring-1 focus:ring-slate-400 focus:outline-none"
               >
                 <option value="COLUMN_WISE">Columns Fully (Column 1 → Column 2 → Column 3 → Column 4)</option>
                 <option value="ROW_WISE">Rows Fully (Row 1 → Row 2 → Row 3 → Row 4)</option>
@@ -619,7 +619,7 @@ export default function RootAllocationPage() {
         <div className="lg:col-span-2 space-y-4">
           {/* KPI Metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-4 rounded-2xl border border-slate-200 bg-white shadow-2xs">
+            <div className="p-4 rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 shadow-2xs">
               <span className="text-[10px] uppercase font-bold text-slate-400">Total Allocated</span>
               <p className="text-2xl font-bold text-slate-900 mt-1">
                 {summary?.total_students_allocated ?? 0}
@@ -629,7 +629,7 @@ export default function RootAllocationPage() {
               </span>
             </div>
 
-            <div className="p-4 rounded-2xl border border-slate-200 bg-white shadow-2xs">
+            <div className="p-4 rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 shadow-2xs">
               <span className="text-[10px] uppercase font-bold text-slate-400">Branch Mixing</span>
               <p className="text-2xl font-bold text-slate-900 mt-1">
                 {summary?.branch_mixing_compliance_percent ?? 0}%
@@ -639,7 +639,7 @@ export default function RootAllocationPage() {
               </span>
             </div>
 
-            <div className="p-4 rounded-2xl border border-slate-200 bg-white shadow-2xs">
+            <div className="p-4 rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 shadow-2xs">
               <span className="text-[10px] uppercase font-bold text-slate-400">Halls Utilized</span>
               <p className="text-2xl font-bold text-slate-900 mt-1">
                 {summary?.total_rooms_utilized ?? 0} Halls
@@ -649,7 +649,7 @@ export default function RootAllocationPage() {
               </span>
             </div>
 
-            <div className="p-4 rounded-2xl border border-slate-200 bg-white shadow-2xs">
+            <div className="p-4 rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 shadow-2xs">
               <span className="text-[10px] uppercase font-bold text-slate-400">Collisions</span>
               <p className="text-2xl font-bold text-emerald-700 mt-1">0</p>
               <span className="text-[10px] text-emerald-700 font-medium">Zero Clashes</span>
@@ -657,7 +657,7 @@ export default function RootAllocationPage() {
           </div>
 
           {/* Question Paper Security & Branch Breakdown Card */}
-          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3">
+          <div className="p-4 rounded-2xl bg-white/60 backdrop-blur-xl border-white/60 border border-slate-200 shadow-2xs space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-slate-700" />
@@ -720,7 +720,7 @@ export default function RootAllocationPage() {
                   className={`px-4 py-2 rounded-xl text-xs font-semibold transition whitespace-nowrap ${
                     isActive
                       ? "bg-blue-700 text-white shadow-xs font-bold"
-                      : "bg-white text-slate-700 hover:text-slate-900 border border-slate-300 hover:bg-slate-50 shadow-2xs"
+                      : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 hover:text-slate-900 border border-slate-300 hover:bg-slate-50 shadow-2xs"
                   }`}
                 >
                   Room {room.room_number} (Block {room.block} • {effectiveCapacity} Seats{isSem ? " • SEM 1/Bench" : ""})
@@ -732,7 +732,7 @@ export default function RootAllocationPage() {
       </div>
 
       {/* Visual Seating Layout */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+      <div className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-5 shadow-xs">
         {currentMatrix && currentMatrix.allocatedCount > 0 ? (
           <RoomSeatingGrid
             matrix={currentMatrix}

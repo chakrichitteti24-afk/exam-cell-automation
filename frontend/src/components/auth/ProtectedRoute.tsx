@@ -48,7 +48,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
-        <div className="max-w-md w-full rounded-3xl border border-rose-200 bg-white p-8 shadow-xl text-center space-y-5">
+        <div className="max-w-md w-full rounded-3xl border border-rose-200 bg-white/60 backdrop-blur-xl border-white/60 p-8 shadow-xl text-center space-y-5">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 shadow-inner">
             <Lock className="h-8 w-8" />
           </div>

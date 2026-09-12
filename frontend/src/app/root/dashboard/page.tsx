@@ -187,7 +187,7 @@ export default function RootDashboardPage() {
           {/* Secondary White Button */}
           <Link
             href="/root/students"
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 shadow-2xs transition"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/60 backdrop-blur-xl border-white/60 border border-slate-300 hover:bg-slate-50 text-slate-800 shadow-2xs transition"
           >
             <UploadCloud className="h-3.5 w-3.5 text-slate-500" />
             <span>Import Candidates</span>
@@ -260,7 +260,7 @@ export default function RootDashboardPage() {
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                     allocationMode === "MULTI_EXAM"
                       ? "bg-blue-600 text-white shadow-xs shadow-blue-500/20"
-                      : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                      : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-600 border border-slate-200 hover:bg-slate-100"
                   }`}
                 >
                   Multi-Exam Session
@@ -271,7 +271,7 @@ export default function RootDashboardPage() {
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                     allocationMode === "COMMON_EXAM"
                       ? "bg-blue-600 text-white shadow-xs shadow-blue-500/20"
-                      : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                      : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-600 border border-slate-200 hover:bg-slate-100"
                   }`}
                 >
                   Common Exam
@@ -371,7 +371,7 @@ export default function RootDashboardPage() {
                     onClick={handleResetAllocations}
                     disabled={isAllocating}
                     title="Reset allocations back to unassigned"
-                    className="w-full sm:w-auto p-3 rounded-xl border border-slate-300 bg-white text-slate-500 hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 text-xs font-semibold shadow-2xs transition"
+                    className="w-full sm:w-auto p-3 rounded-xl border border-slate-300 bg-white/60 backdrop-blur-xl border-white/60 text-slate-500 hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 text-xs font-semibold shadow-2xs transition"
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
                   </button>
@@ -558,7 +558,7 @@ export default function RootDashboardPage() {
                       <span className="font-bold text-xs text-slate-900">
                         Room {room.room_number}
                       </span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded font-semibold bg-white text-slate-600 border border-slate-200">
+                      <span className="text-[10px] px-1.5 py-0.2 rounded font-semibold bg-white/60 backdrop-blur-xl border-white/60 text-slate-600 border border-slate-200">
                         {room.block}
                       </span>
                     </div>
@@ -643,7 +643,7 @@ export default function RootDashboardPage() {
       {/* ── Exam Launch Confirmation / Duty Roster Modal ── */}
       {showLaunchModal && launchResult && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white/60 backdrop-blur-xl border-white/60 rounded-2xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/70">
               <div className="flex items-center gap-2.5">
@@ -668,7 +668,7 @@ export default function RootDashboardPage() {
             </div>
 
             {/* Metrics Ribbon */}
-            <div className="grid grid-cols-3 gap-3 p-5 bg-white border-b border-slate-100 text-center">
+            <div className="grid grid-cols-3 gap-3 p-5 bg-white/60 backdrop-blur-xl border-white/60 border-b border-slate-100 text-center">
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70">
                 <div className="text-2xl font-black text-slate-900 font-mono">
                   {launchResult.total_students_allocated}
@@ -705,7 +705,7 @@ export default function RootDashboardPage() {
                   {launchResult.duty_roster.map((item, idx) => (
                     <div
                       key={idx}
-                      className="p-3 bg-white flex items-center justify-between gap-3 text-xs hover:bg-slate-50 transition"
+                      className="p-3 bg-white/60 backdrop-blur-xl border-white/60 flex items-center justify-between gap-3 text-xs hover:bg-slate-50 transition"
                     >
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-700 font-mono font-bold flex items-center justify-center text-xs shrink-0 border border-blue-200/60">

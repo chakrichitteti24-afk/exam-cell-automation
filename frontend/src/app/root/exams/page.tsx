@@ -159,7 +159,7 @@ export default function RootExamsPage() {
       {loading ? (
         <div className="p-12 text-center text-xs text-slate-400">Loading examinations...</div>
       ) : filteredExams.length === 0 ? (
-        <div className="p-12 text-center text-xs text-slate-400 bg-white rounded-2xl border border-slate-200">
+        <div className="p-12 text-center text-xs text-slate-400 bg-white/60 backdrop-blur-xl border-white/60 rounded-2xl border border-slate-200">
           No examinations found matching the selected filter.
         </div>
       ) : (
@@ -167,7 +167,7 @@ export default function RootExamsPage() {
           {filteredExams.map((exam) => (
             <div
               key={exam.id}
-              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-slate-300 transition"
+              className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-slate-300 transition"
             >
               <div>
                 <div className="flex items-start justify-between gap-2">
@@ -238,7 +238,7 @@ export default function RootExamsPage() {
       {/* Add Exam Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+          <div className="bg-white/60 backdrop-blur-xl border-white/60 border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-slate-900">
                 Schedule New Examination
@@ -410,7 +410,7 @@ export default function RootExamsPage() {
                         className={`p-1.5 rounded-lg text-left border text-xs transition ${
                           formData.examSubdivision === "MID_1"
                             ? "bg-blue-600 text-white border-blue-600 font-semibold shadow-xs"
-                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                            : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 border-slate-200 hover:bg-slate-100"
                         }`}
                       >
                         <div className="font-bold text-[10.5px]">Mid-1 (MID_1)</div>
@@ -422,7 +422,7 @@ export default function RootExamsPage() {
                         className={`p-1.5 rounded-lg text-left border text-xs transition ${
                           formData.examSubdivision === "MID_2"
                             ? "bg-blue-600 text-white border-blue-600 font-semibold shadow-xs"
-                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                            : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 border-slate-200 hover:bg-slate-100"
                         }`}
                       >
                         <div className="font-bold text-[10.5px]">Mid-2 (MID_2)</div>
@@ -437,7 +437,7 @@ export default function RootExamsPage() {
                         className={`p-1.5 rounded-lg text-left border text-xs transition ${
                           formData.examSubdivision === "REGULAR"
                             ? "bg-purple-600 text-white border-purple-600 font-semibold shadow-xs"
-                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                            : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 border-slate-200 hover:bg-slate-100"
                         }`}
                       >
                         <div className="font-bold text-[10.5px]">Regular (REGULAR)</div>
@@ -449,7 +449,7 @@ export default function RootExamsPage() {
                         className={`p-1.5 rounded-lg text-left border text-xs transition ${
                           formData.examSubdivision === "SUPPLEMENTARY"
                             ? "bg-purple-600 text-white border-purple-600 font-semibold shadow-xs"
-                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                            : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 border-slate-200 hover:bg-slate-100"
                         }`}
                       >
                         <div className="font-bold text-[10.5px]">Supply (SUPPLEMENTARY)</div>

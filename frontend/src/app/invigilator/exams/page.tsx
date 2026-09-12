@@ -51,7 +51,7 @@ export default function InvigilatorExamsPage() {
           duties.map((duty) => (
             <div
               key={duty.id}
-              className="rounded-2xl border-2 border-blue-600 bg-white p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"
+              className="rounded-2xl border-2 border-blue-600 bg-white/60 backdrop-blur-xl border-white/60 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"
             >
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -107,7 +107,7 @@ export default function InvigilatorExamsPage() {
             {exams.map((ex) => (
               <div
                 key={ex.id}
-                className="rounded-2xl border border-slate-200 bg-white p-4 flex items-center justify-between text-xs shadow-xs"
+                className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-4 flex items-center justify-between text-xs shadow-xs"
               >
                 <div>
                   <div className="font-bold text-slate-900">

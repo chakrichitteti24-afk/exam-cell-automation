@@ -130,7 +130,7 @@ export default function RootRoomsPage() {
           {rooms.map((room) => (
             <div
               key={room.id}
-              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-slate-300 transition"
+              className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-slate-300 transition"
             >
               <div>
                 <div className="flex items-start justify-between">
@@ -184,7 +184,7 @@ export default function RootRoomsPage() {
       {/* Add Room Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+          <div className="bg-white/60 backdrop-blur-xl border-white/60 border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-slate-900">
                 Configure Examination Room
@@ -316,7 +316,7 @@ export default function RootRoomsPage() {
       {/* Inspect Bench Grid Modal */}
       {previewRoom && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white/60 backdrop-blur-xl border-white/60 border border-slate-200 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div>
                 <h3 className="text-lg font-black text-slate-900">
@@ -344,7 +344,7 @@ export default function RootRoomsPage() {
               {Array.from({ length: previewRoom.benchCount }).map((_, idx) => (
                 <div
                   key={idx}
-                  className="p-3 rounded-xl border border-slate-200 bg-white hover:border-blue-400 text-center space-y-1.5 shadow-2xs transition"
+                  className="p-3 rounded-xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 hover:border-blue-400 text-center space-y-1.5 shadow-2xs transition"
                 >
                   <div className="font-mono font-bold text-xs text-slate-800">
                     Bench {idx + 1}

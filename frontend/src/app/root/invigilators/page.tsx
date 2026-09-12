@@ -183,14 +183,14 @@ export default function RootInvigilatorsPage() {
           </div>
         </div>
         <div className="shrink-0 flex items-center gap-2">
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white text-blue-800 border border-blue-200 font-mono shadow-2xs">
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/60 backdrop-blur-xl border-white/60 text-blue-800 border border-blue-200 font-mono shadow-2xs">
             ZERO CONFLICT
           </span>
         </div>
       </div>
 
       {/* Search Filter */}
-      <div className="flex items-center justify-between gap-4 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+      <div className="flex items-center justify-between gap-4 bg-white/60 backdrop-blur-xl border-white/60 p-3 rounded-2xl border border-slate-200 shadow-xs">
         <div className="relative w-full sm:w-80">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
           <input
@@ -211,7 +211,7 @@ export default function RootInvigilatorsPage() {
           {filtered.map((inv) => (
             <div
               key={inv.id}
-              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-slate-300 transition"
+              className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-slate-300 transition"
             >
               <div>
                 <div className="flex items-start justify-between">
@@ -268,7 +268,7 @@ export default function RootInvigilatorsPage() {
       {/* Add Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+          <div className="bg-white/60 backdrop-blur-xl border-white/60 border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-slate-900">
                 Add Faculty Invigilator

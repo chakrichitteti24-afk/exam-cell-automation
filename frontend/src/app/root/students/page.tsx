@@ -171,7 +171,7 @@ export default function RootStudentsPage() {
         <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-800 hover:bg-slate-50 shadow-2xs transition"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-300 bg-white/60 backdrop-blur-xl border-white/60 text-xs font-semibold text-slate-800 hover:bg-slate-50 shadow-2xs transition"
           >
             <UploadCloud className="h-3.5 w-3.5 text-blue-700" />
             Import CSV
@@ -190,7 +190,7 @@ export default function RootStudentsPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white/60 backdrop-blur-xl border-white/60 p-3 rounded-2xl border border-slate-200 shadow-xs">
         <div className="relative w-full sm:w-80">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
           <input
@@ -227,7 +227,7 @@ export default function RootStudentsPage() {
       </div>
 
       {/* Students Data Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
@@ -326,7 +326,7 @@ export default function RootStudentsPage() {
       {/* Add Student Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+          <div className="bg-white/60 backdrop-blur-xl border-white/60 border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-slate-900">
                 Register New Student
@@ -455,7 +455,7 @@ export default function RootStudentsPage() {
       {/* CSV Import Modal */}
       {isImportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+          <div className="bg-white/60 backdrop-blur-xl border-white/60 border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-slate-900">
                 Batch Import Students via CSV

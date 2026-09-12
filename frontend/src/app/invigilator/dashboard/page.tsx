@@ -239,7 +239,7 @@ export default function InvigilatorDashboardPage() {
       </BentoGrid>
 
       {/* Seating Arrangement Matrix */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-5 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
           <div>
             <h2 className="text-base font-bold text-slate-900">
