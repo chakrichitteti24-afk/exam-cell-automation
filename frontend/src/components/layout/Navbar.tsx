@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -77,8 +78,8 @@ export function Navbar({
           }
           className="flex items-center gap-2.5 sm:gap-3 shrink-0"
         >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20">
-            <GraduationCap className="h-5 w-5" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl overflow-hidden bg-white shadow-md shadow-blue-500/20 border border-slate-100 p-0.5">
+            <Image src="/icon.png" alt="GKCE Exam Cell Logo" width={40} height={40} className="rounded-lg object-contain" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 sm:gap-2">
