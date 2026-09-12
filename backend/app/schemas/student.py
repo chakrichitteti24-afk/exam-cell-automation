@@ -1,5 +1,5 @@
-from typing import Optional
-from pydantic import BaseModel, EmailStr, ConfigDict
+from typing import Optional, List
+from pydantic import BaseModel, ConfigDict
 
 class StudentBase(BaseModel):
     roll_number: str
@@ -28,11 +28,17 @@ class StudentResponse(StudentBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+class ImportedCredential(BaseModel):
+    roll_number: str
+    email: str
+    temp_password: str
+
 class StudentImportSummary(BaseModel):
     total_records: int
     imported_count: int
     skipped_count: int
     errors: list[str] = []
+    credentials: List[ImportedCredential] = []
 
 class DepartmentResponse(BaseModel):
     id: int

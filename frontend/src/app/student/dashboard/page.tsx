@@ -31,8 +31,9 @@ export default function StudentDashboardPage() {
     async function loadDeskSlip() {
       setLoading(true);
       try {
-        const slip = await api.allocation.getMyDeskSlip();
-        setDeskSlip(slip);
+        const slips = await api.allocation.getMyDeskSlip();
+        // Dashboard shows the primary (first) active allocation
+        setDeskSlip(Array.isArray(slips) && slips.length > 0 ? slips[0] : null);
       } catch (err) {
         console.warn("Could not retrieve candidate desk slip:", err);
         setDeskSlip(null);

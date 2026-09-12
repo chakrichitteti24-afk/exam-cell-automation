@@ -2,7 +2,15 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Calendar, Clock, DoorOpen, Users, CheckCircle2, ArrowRight } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  DoorOpen,
+  Users,
+  CheckCircle2,
+  ArrowRight,
+  Hourglass,
+} from "lucide-react";
 import { api, ApiDutyAssignment, ApiExam } from "@/lib/api";
 
 export default function InvigilatorExamsPage() {
@@ -28,6 +36,9 @@ export default function InvigilatorExamsPage() {
     loadData();
   }, []);
 
+  const hasActiveExams = exams.some((e) => e.status === "ACTIVE");
+  const scheduledExams = exams.filter((e) => e.status === "SCHEDULED");
+
   return (
     <div className="space-y-6">
       <div>
@@ -48,54 +59,72 @@ export default function InvigilatorExamsPage() {
         {loading ? (
           <div className="p-8 text-center text-xs text-slate-400">Loading duty assignments...</div>
         ) : duties.length > 0 ? (
-          duties.map((duty) => (
-            <div
-              key={duty.id}
-              className="rounded-2xl border-2 border-blue-600 bg-white/60 backdrop-blur-xl border-white/60 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-md bg-blue-600 text-white text-xs font-bold uppercase">
-                    Active Duty
-                  </span>
-                  <span className="text-xs font-mono font-bold text-blue-600">
-                    {duty.subject_code}
-                  </span>
-                </div>
-
-                <h3 className="text-lg font-black text-slate-900">
-                  {duty.subject_name}
-                </h3>
-
-                <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
-                  <div className="flex items-center gap-1.5 font-medium">
-                    <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                    <span>{duty.exam_date}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 font-medium">
-                    <Clock className="h-3.5 w-3.5 text-slate-400" />
-                    <span>{duty.time_slot}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 font-bold text-blue-600">
-                    <DoorOpen className="h-3.5 w-3.5" />
-                    <span>Room {duty.room_number} (Block {duty.block})</span>
-                  </div>
-                </div>
-              </div>
-
-              <Link
-                href="/invigilator/dashboard"
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm shadow-blue-200 transition self-start md:self-auto"
+          <>
+            {duties.map((duty) => (
+              <div
+                key={duty.id}
+                className="rounded-2xl border-2 border-blue-600 bg-white/60 backdrop-blur-xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"
               >
-                <span>Open Duty Desk</span>
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
-          ))
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-1 rounded-md bg-blue-600 text-white text-xs font-bold uppercase">
+                      Active Duty
+                    </span>
+                    <span className="text-xs font-mono font-bold text-blue-600">
+                      {duty.subject_code}
+                    </span>
+                  </div>
+
+                  <h3 className="text-lg font-black text-slate-900">{duty.subject_name}</h3>
+
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+                    <div className="flex items-center gap-1.5 font-medium">
+                      <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                      <span>{duty.exam_date}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 font-medium">
+                      <Clock className="h-3.5 w-3.5 text-slate-400" />
+                      <span>{duty.time_slot}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 font-bold text-blue-600">
+                      <DoorOpen className="h-3.5 w-3.5" />
+                      <span>Room {duty.room_number} (Block {duty.block})</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 font-medium">
+                      <Users className="h-3.5 w-3.5 text-slate-400" />
+                      <span>{duty.total_students} Candidates</span>
+                    </div>
+                  </div>
+                </div>
+
+                <Link
+                  href={`/invigilator/rooms/${duty.room_id}?exam_id=${duty.exam_id}`}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm shadow-blue-200 transition self-start md:self-auto"
+                >
+                  <span>Open Room Seating Chart</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            ))}
+          </>
         ) : (
-          <div className="p-8 text-center text-xs text-slate-400 border border-slate-200 rounded-2xl">
-            No invigilation duties currently assigned to your faculty profile.
-          </div>
+          /* No duties yet — show pending state if scheduled exams exist */
+          hasActiveExams || scheduledExams.length > 0 ? (
+            <div className="rounded-2xl border-2 border-amber-300 bg-amber-50/50 p-6 space-y-2">
+              <div className="flex items-center gap-2">
+                <Hourglass className="h-4 w-4 text-amber-600" />
+                <span className="text-sm font-bold text-amber-700">No Duties Assigned Yet</span>
+              </div>
+              <p className="text-xs text-amber-700">
+                {scheduledExams.length} examination{scheduledExams.length > 1 ? "s" : ""} are scheduled.
+                Your duty will appear here once the administrator runs the allocation engine.
+              </p>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-xs text-slate-400 border border-slate-200 rounded-2xl">
+              No invigilation duties currently assigned to your faculty profile.
+            </div>
+          )
         )}
 
         {/* General upcoming examinations */}
@@ -107,7 +136,7 @@ export default function InvigilatorExamsPage() {
             {exams.map((ex) => (
               <div
                 key={ex.id}
-                className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-4 flex items-center justify-between text-xs shadow-xs"
+                className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl p-4 flex items-center justify-between text-xs shadow-xs"
               >
                 <div>
                   <div className="font-bold text-slate-900">
@@ -117,7 +146,11 @@ export default function InvigilatorExamsPage() {
                     {ex.exam_date} • {ex.start_time} - {ex.end_time} • {ex.enrolled_students_count} Students
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                  ex.status === "ACTIVE"
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    : "bg-slate-100 text-slate-600 border-slate-200"
+                }`}>
                   {ex.status}
                 </span>
               </div>

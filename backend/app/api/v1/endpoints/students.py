@@ -132,6 +132,7 @@ async def import_students_from_file(
 ):
     """
     Bulk import students from CSV or Excel file.
+    Returns imported count, skipped count, errors, and temporary credentials.
     Restricted to ROOT administrators.
     """
     contents = await file.read()
@@ -149,6 +150,7 @@ async def import_students_from_file(
     imported = 0
     skipped = 0
     errors = []
+    credentials = []
 
     # Map department codes
     departments = db.execute(select(Department)).scalars().all()
@@ -161,28 +163,37 @@ async def import_students_from_file(
             dept_code = str(row.get("department", "CSE")).strip().upper()
             sem = int(row.get("semester", 5))
             sec = str(row.get("section", "A")).strip()
-            email = str(row.get("email", f"{roll.lower()}@student.gkce.edu.in")).strip()
+            email_val = str(row.get("email", f"{roll.lower()}@student.gkce.edu.in")).strip()
+            acad_year = str(row.get("academic_year", "2026-2027")).strip()
 
             if not roll or not name:
                 skipped += 1
                 continue
 
-            # Check if exists
+            # Skip if roll number already exists
             exists = db.execute(select(Student).where(Student.roll_number == roll)).scalar_one_or_none()
             if exists:
                 skipped += 1
+                errors.append(f"Row {idx+2}: Roll number '{roll}' already exists — skipped.")
+                continue
+
+            # Skip if email already exists in users
+            email_exists = db.execute(select(User).where(User.email == email_val)).scalar_one_or_none()
+            if email_exists:
+                skipped += 1
+                errors.append(f"Row {idx+2}: Email '{email_val}' already registered — skipped.")
                 continue
 
             dept_id = dept_map.get(dept_code)
             if not dept_id:
-                # Default to CSE if not matched
                 dept_id = dept_map.get("CSE", 1)
 
             import secrets
             temp_pw = secrets.token_urlsafe(12)
+
             # Create User
             user = User(
-                email=email,
+                email=email_val,
                 username=roll,
                 hashed_password=get_password_hash(temp_pw),
                 role="STUDENT",
@@ -198,12 +209,14 @@ async def import_students_from_file(
                 department_id=dept_id,
                 semester=sem,
                 section=sec,
-                email=email
+                academic_year=acad_year,
+                email=email_val
             )
             db.add(student)
+            credentials.append({"roll_number": roll, "email": email_val, "temp_password": temp_pw})
             imported += 1
         except Exception as row_err:
-            errors.append(f"Row {idx+1}: {str(row_err)}")
+            errors.append(f"Row {idx+2}: {str(row_err)}")
             skipped += 1
 
     db.commit()
@@ -211,5 +224,30 @@ async def import_students_from_file(
         total_records=total_records,
         imported_count=imported,
         skipped_count=skipped,
-        errors=errors[:10]
+        errors=errors[:20],
+        credentials=credentials
     )
+
+@router.delete("/{student_id}", status_code=status.HTTP_200_OK)
+def delete_student(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["ROOT"]))
+):
+    """
+    Permanently remove a student record and their linked user account.
+    Restricted to ROOT administrators.
+    """
+    student = db.execute(select(Student).where(Student.id == student_id)).scalar_one_or_none()
+    if not student:
+        raise HTTPException(status_code=404, detail=f"Student with ID {student_id} not found.")
+
+    # Remove linked user account
+    if student.user_id:
+        user = db.execute(select(User).where(User.id == student.user_id)).scalar_one_or_none()
+        if user:
+            db.delete(user)
+
+    db.delete(student)
+    db.commit()
+    return {"message": f"Student '{student.name}' ({student.roll_number}) and their user account have been permanently removed."}

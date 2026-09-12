@@ -16,6 +16,7 @@ import {
   Building,
   ShieldCheck,
   RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { api, ApiInvigilator, ApiRoom, ApiDepartment } from "@/lib/api";
 
@@ -29,6 +30,7 @@ export default function RootInvigilatorsPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const [newInv, setNewInv] = useState({
     name: "",
@@ -106,6 +108,19 @@ export default function RootInvigilatorsPage() {
       setFormError(err instanceof Error ? err.message : "Failed to register faculty invigilator.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteInvigilator = async (inv: ApiInvigilator) => {
+    if (!confirm(`Delete invigilator "${inv.name}" (${inv.faculty_id})?\n\nThis will permanently remove their profile, all duty assignments, and login account.`)) return;
+    setDeletingId(inv.id);
+    try {
+      await api.invigilators.delete(inv.id);
+      await loadData();
+    } catch (err: unknown) {
+      alert(`Delete failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -228,6 +243,19 @@ export default function RootInvigilatorsPage() {
                       </p>
                     </div>
                   </div>
+                  {/* Delete button */}
+                  <button
+                    onClick={() => handleDeleteInvigilator(inv)}
+                    disabled={deletingId === inv.id}
+                    title="Delete invigilator"
+                    className="ml-2 inline-flex items-center justify-center h-7 w-7 rounded-lg border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:border-rose-300 transition disabled:opacity-40 shrink-0"
+                  >
+                    {deletingId === inv.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                  </button>
                 </div>
 
                 <div className="mt-4 space-y-1.5 text-xs text-slate-600">

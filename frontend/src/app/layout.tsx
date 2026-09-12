@@ -17,6 +17,7 @@ export const metadata: Metadata = {
   title: "Exam Cell Automation System | Gokula Krishna College of Engineering",
   description:
     "Autonomous examination seating allocation, hall capacity management, and invigilation portal for Gokula Krishna College of Engineering (GKCE).",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({

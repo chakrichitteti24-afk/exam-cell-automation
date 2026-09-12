@@ -269,3 +269,31 @@ def get_my_duties(
         )
     return duties
 
+@router.delete("/{invigilator_id}", status_code=status.HTTP_200_OK)
+def delete_invigilator(
+    invigilator_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["ROOT"]))
+):
+    """
+    Permanently remove a faculty invigilator, their duty allocations, and linked user account.
+    Restricted to ROOT administrators.
+    """
+    from sqlalchemy import delete as sql_delete
+    inv = db.execute(select(Invigilator).where(Invigilator.id == invigilator_id)).scalar_one_or_none()
+    if not inv:
+        raise HTTPException(status_code=404, detail=f"Invigilator with ID {invigilator_id} not found.")
+
+    # Remove duty allocations first
+    db.execute(sql_delete(InvigilatorAllocation).where(InvigilatorAllocation.invigilator_id == inv.id))
+
+    # Remove linked user account
+    if inv.user_id:
+        user = db.execute(select(User).where(User.id == inv.user_id)).scalar_one_or_none()
+        if user:
+            db.delete(user)
+
+    db.delete(inv)
+    db.commit()
+    return {"message": f"Invigilator '{inv.name}' ({inv.faculty_id}) and all duty assignments have been permanently removed."}
+

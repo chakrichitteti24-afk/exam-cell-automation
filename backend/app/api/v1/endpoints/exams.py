@@ -213,6 +213,43 @@ def launch_exam_session(
                 )
             )
 
+    # BROADCAST NOTIFICATIONS to allocated students and invigilators
+    from app.api.v1.endpoints.notifications import broadcast_notification
+    try:
+        # Get Student user IDs
+        student_uids = db.execute(
+            select(Student.user_id)
+            .join(StudentAllocation, StudentAllocation.student_id == Student.id)
+            .where(StudentAllocation.exam_id.in_(target_exam_ids))
+        ).scalars().all()
+
+        # Get Invigilator user IDs
+        invig_uids = db.execute(
+            select(Invigilator.user_id)
+            .join(InvigilatorAllocation, InvigilatorAllocation.invigilator_id == Invigilator.id)
+            .where(InvigilatorAllocation.exam_id.in_(target_exam_ids))
+        ).scalars().all()
+
+        # Target Student Payload
+        if student_uids:
+            broadcast_notification(db, student_uids, {
+                "title": f"📋 Exam Allocation Live",
+                "body": f"Your seating for the scheduled examination is now available.",
+                "url": "/student/exam",
+                "vibrate": [300, 100, 300, 100, 300]
+            })
+
+        # Target Invigilator Payload
+        if invig_uids:
+            broadcast_notification(db, invig_uids, {
+                "title": f"🔔 Duty Assigned",
+                "body": f"You are assigned invigilation duty for the scheduled examination.",
+                "url": "/invigilator/exams",
+                "vibrate": [300, 100, 300, 100, 300]
+            })
+    except Exception as e:
+        print(f"Failed to broadcast notifications: {e}")
+
     return ExamLaunchResponse(
         message=f"Successfully launched {len(launched_exams_res)} examination(s). {summary.total_students_allocated} candidates allocated across {summary.rooms_utilized} halls with 100% branch-mixing compliance.",
         status="ACTIVE",

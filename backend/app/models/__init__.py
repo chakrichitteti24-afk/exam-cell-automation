@@ -4,6 +4,7 @@ from app.models.academic import Department, Student, Invigilator
 from app.models.infrastructure import Room, Bench, Seat
 from app.models.exam import Exam, ExamStudent
 from app.models.seating import StudentAllocation, InvigilatorAllocation, AttendanceRecord
+from app.models.push_subscription import PushSubscription
 
 __all__ = [
     "Base",
@@ -19,4 +20,5 @@ __all__ = [
     "StudentAllocation",
     "InvigilatorAllocation",
     "AttendanceRecord",
+    "PushSubscription",
 ]

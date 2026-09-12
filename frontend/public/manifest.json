@@ -1,0 +1,16 @@
+{
+  "name": "GKCE Exam Cell Automation",
+  "short_name": "GKCE Exams",
+  "description": "Autonomous examination seating and invigilation portal",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1d4ed8",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}

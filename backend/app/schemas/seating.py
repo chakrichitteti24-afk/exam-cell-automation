@@ -79,7 +79,7 @@ class StudentDeskSlipResponse(BaseModel):
     room_id: int
     room_number: str
     block: str
-    floor: str
+    floor: Optional[str] = None
     bench_number: int
     seat_number: int
     seat_label: str

@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select, delete
 from app.db.session import get_db
 from app.api.deps import require_role, get_current_user

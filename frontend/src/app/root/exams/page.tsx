@@ -12,6 +12,9 @@ import {
   AlertCircle,
   X,
   Sparkles,
+  Loader2,
+  Rocket,
+  ArrowRight,
 } from "lucide-react";
 import { api, ApiExam } from "@/lib/api";
 
@@ -22,6 +25,8 @@ export default function RootExamsPage() {
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [subdivisionFilter, setSubdivisionFilter] = useState<string>("ALL");
+  const [launchingExamId, setLaunchingExamId] = useState<number | null>(null);
+  const [launchResult, setLaunchResult] = useState<{ examId: number; message: string; ok: boolean } | null>(null);
 
   const [formData, setFormData] = useState({
     examCode: "",
@@ -50,6 +55,20 @@ export default function RootExamsPage() {
   useEffect(() => {
     loadExams();
   }, []);
+
+  const handleLaunchAllocation = async (examId: number) => {
+    setLaunchingExamId(examId);
+    setLaunchResult(null);
+    try {
+      const res = await api.exams.launch({ exam_id: examId });
+      setLaunchResult({ examId, message: `✅ ${res.total_students_allocated} students allocated across ${res.rooms_utilized} rooms.`, ok: true });
+      await loadExams();
+    } catch (err: unknown) {
+      setLaunchResult({ examId, message: `❌ ${err instanceof Error ? err.message : "Allocation failed"}`, ok: false });
+    } finally {
+      setLaunchingExamId(null);
+    }
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,6 +123,27 @@ export default function RootExamsPage() {
 
   return (
     <div className="space-y-6">
+      {/* 3-Step Pipeline Banner */}
+      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+        <p className="text-xs font-bold text-blue-800 mb-2">ROOT Workflow — Exam Allocation Pipeline</p>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-700 text-white font-semibold">
+            <span className="font-mono text-[10px]">01</span>
+            <span>Schedule Exam</span>
+          </div>
+          <ArrowRight className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-blue-200 text-blue-700 font-semibold">
+            <Rocket className="h-3.5 w-3.5" />
+            <span>Run Allocation Engine</span>
+          </div>
+          <ArrowRight className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-emerald-200 text-emerald-700 font-semibold">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            <span>Live for Students &amp; Invigilators</span>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -221,13 +261,38 @@ export default function RootExamsPage() {
                 </div>
               </div>
 
+              {/* Launch result toast for this exam */}
+              {launchResult && launchResult.examId === exam.id && (
+                <div className={`text-[10px] font-semibold px-2 py-1 rounded-lg ${launchResult.ok ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
+                  {launchResult.message}
+                </div>
+              )}
+
               <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                {exam.status === "ACTIVE" ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Live — {exam.allocated_students_count} Allocated
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => handleLaunchAllocation(exam.id)}
+                    disabled={launchingExamId === exam.id}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 px-3 py-1.5 rounded-xl shadow-sm transition disabled:opacity-60"
+                  >
+                    {launchingExamId === exam.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Rocket className="h-3.5 w-3.5" />
+                    )}
+                    {launchingExamId === exam.id ? "Allocating..." : "Run Allocation"}
+                  </button>
+                )}
                 <Link
                   href="/root/allocation"
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
+                  className="text-[10px] font-semibold text-slate-400 hover:text-blue-600 transition"
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span>Run Seating Allocation</span>
+                  View Details →
                 </Link>
               </div>
             </div>

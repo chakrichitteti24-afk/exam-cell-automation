@@ -72,14 +72,28 @@ export interface ApiInvigilator {
   assigned_room?: string;
 }
 
+export interface ImportedCredential {
+  roll_number: string;
+  email: string;
+  temp_password: string;
+}
+
+export interface ApiStudentImportSummary {
+  total_records: number;
+  imported_count: number;
+  skipped_count: number;
+  errors: string[];
+  credentials: ImportedCredential[];
+}
+
 export interface ApiDutyAssignment {
   id: number;
   exam_id: number;
+  room_id: number;
   subject_code: string;
   subject_name: string;
   exam_date: string;
   time_slot: string;
-  room_id: number;
   room_number: string;
   block: string;
   total_students: number;
@@ -357,7 +371,7 @@ export const api = {
         body: JSON.stringify(data),
       }),
 
-    importCSV: (file: File): Promise<{ total_records: number; imported_count: number; skipped_count: number; errors: string[] }> => {
+    importCSV: (file: File): Promise<ApiStudentImportSummary> => {
       const formData = new FormData();
       formData.append("file", file);
       return request("/students/import-csv", {
@@ -365,6 +379,9 @@ export const api = {
         body: formData,
       });
     },
+
+    delete: (studentId: number): Promise<{ message: string }> =>
+      request<{ message: string }>(`/students/${studentId}`, { method: "DELETE" }),
   },
 
   rooms: {
@@ -409,6 +426,9 @@ export const api = {
       }),
     myDuties: (): Promise<ApiDutyAssignment[]> =>
       request<ApiDutyAssignment[]>("/invigilators/my-duties"),
+
+    delete: (invigilatorId: number): Promise<{ message: string }> =>
+      request<{ message: string }>(`/invigilators/${invigilatorId}`, { method: "DELETE" }),
   },
 
   exams: {
@@ -465,8 +485,8 @@ export const api = {
     getRoomMatrix: (roomId: number, examId: number): Promise<ApiRoomSeatingMatrix> =>
       request<ApiRoomSeatingMatrix>(`/allocation/room/${roomId}/exam/${examId}`),
 
-    getMyDeskSlip: (): Promise<ApiStudentDeskSlip> =>
-      request<ApiStudentDeskSlip>("/allocation/student/me"),
+    getMyDeskSlip: (): Promise<ApiStudentDeskSlip[]> =>
+      request<ApiStudentDeskSlip[]>("/allocation/student/me"),
 
     getDoorNotice: (roomId: number, examId: number): Promise<ApiDoorNoticeReport> =>
       request<ApiDoorNoticeReport>(`/allocation/reports/door-notice/${roomId}/exam/${examId}`),
