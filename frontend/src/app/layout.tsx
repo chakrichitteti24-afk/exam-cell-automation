@@ -43,7 +43,26 @@ export default function RootLayout({
           <div className="absolute top-[20%] right-[20%] w-[30rem] h-[30rem] bg-blue-300/30 rounded-full mix-blend-multiply filter blur-[100px] opacity-70 animate-pulse" style={{ animationDelay: "4s" }}></div>
         </div>
 
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <div className="flex-1 flex flex-col">
+            {children}
+          </div>
+          
+          {/* Global Attribution Footer */}
+          <footer className="py-4 text-center z-40 bg-white/40 backdrop-blur-sm border-t border-slate-200/50 mt-auto">
+            <p className="text-[11px] font-medium text-slate-500 flex items-center justify-center gap-1">
+              Engineered & Designed by
+              <a 
+                href="https://cipherflux-labs.vercel.app" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="font-bold text-blue-600 hover:text-blue-700 transition flex items-center gap-1 ml-0.5"
+              >
+                Cipherflux Labs
+              </a>
+            </p>
+          </footer>
+        </AuthProvider>
       </body>
     </html>
   );
