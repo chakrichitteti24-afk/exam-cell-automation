@@ -528,12 +528,19 @@ export default function RootDashboardPage() {
               </p>
             </div>
 
-            <div className="pt-3 border-t border-slate-100">
+            <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+              <Link
+                href="/root/exams"
+                className="flex items-center justify-between w-full px-3 py-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold transition shadow-xs"
+              >
+                <span>+ Schedule Exam</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
               <Link
                 href="/root/exams"
                 className="flex items-center justify-between w-full px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/90 text-xs font-semibold text-slate-800 transition shadow-2xs"
               >
-                <span>View Timetable</span>
+                <span>Manage / Delete Exams</span>
                 <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
               </Link>
             </div>

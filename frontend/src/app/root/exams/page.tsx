@@ -13,6 +13,7 @@ import {
   Loader2,
   Rocket,
   ArrowRight,
+  Trash2,
 } from "lucide-react";
 import { api, ApiExam } from "@/lib/api";
 
@@ -25,6 +26,9 @@ export default function RootExamsPage() {
   const [subdivisionFilter, setSubdivisionFilter] = useState<string>("ALL");
   const [launchingExamId, setLaunchingExamId] = useState<number | null>(null);
   const [launchResult, setLaunchResult] = useState<{ examId: number; message: string; ok: boolean } | null>(null);
+  const [deleteConfirmExam, setDeleteConfirmExam] = useState<ApiExam | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
 
   const [formData, setFormData] = useState({
     examCode: "",
@@ -66,6 +70,20 @@ export default function RootExamsPage() {
       setLaunchResult({ examId, message: `❌ ${err instanceof Error ? err.message : "Allocation failed"}`, ok: false });
     } finally {
       setLaunchingExamId(null);
+    }
+  };
+
+  const handleDeleteExam = async () => {
+    if (!deleteConfirmExam) return;
+    setDeletingId(deleteConfirmExam.id);
+    try {
+      await api.exams.delete(deleteConfirmExam.id);
+      setDeleteConfirmExam(null);
+      await loadExams();
+    } catch (err: unknown) {
+      alert(`Delete failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -293,9 +311,52 @@ export default function RootExamsPage() {
                 >
                   View Details →
                 </Link>
+                <button
+                  onClick={() => setDeleteConfirmExam(exam)}
+                  disabled={deletingId === exam.id}
+                  title="Delete this exam"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition disabled:opacity-50"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Delete Exam Confirm Modal */}
+      {deleteConfirmExam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="h-5 w-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Delete Examination?</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  This will permanently delete <strong>{deleteConfirmExam.subject_code}</strong> — {deleteConfirmExam.subject_name} and all its allocations &amp; attendance records.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setDeleteConfirmExam(null)}
+                className="flex-1 px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteExam}
+                disabled={deletingId !== null}
+                className="flex-1 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition disabled:opacity-60 flex items-center justify-center gap-1.5"
+              >
+                {deletingId !== null ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                Delete Permanently
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
