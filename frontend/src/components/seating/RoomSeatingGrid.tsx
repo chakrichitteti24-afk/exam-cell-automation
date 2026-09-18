@@ -414,7 +414,7 @@ export function RoomSeatingGrid({
         {/* 2D Examination Desk Top Surface */}
         <div
           className={cn(
-            "w-full rounded-2xl border transition-all shadow-sm flex flex-col justify-between overflow-hidden relative z-10",
+            "w-full rounded-2xl border transition-all shadow-sm flex flex-col justify-start overflow-hidden relative z-10",
             blueprintMode
               ? "bg-[#0b192e]/95 border-cyan-500/70 shadow-cyan-900/20"
               : "bg-gradient-to-b from-amber-50/40 via-white/80 to-slate-50/90 backdrop-blur-xl border-slate-200/90",
@@ -1242,7 +1242,7 @@ export function RoomSeatingGrid({
                         ) : (
                           <div
                             key={idx}
-                            className="rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/50 p-4 flex flex-col items-center justify-center text-xs text-slate-400 font-mono"
+                            className="rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/50 p-4 flex flex-col items-center justify-center text-xs text-slate-400 font-mono min-h-[140px]"
                           >
                             <span>EMPTY DESK</span>
                           </div>
@@ -1340,14 +1340,14 @@ export function RoomSeatingGrid({
                     <div
                       key={colNum}
                       className={cn(
-                        "rounded-2xl border p-3 shadow-xs flex flex-col justify-between",
+                        "rounded-2xl border p-3 shadow-xs flex flex-col justify-start space-y-2.5",
                         blueprintMode
                           ? "bg-[#091b33] border-cyan-800"
                           : "bg-white/80 border-slate-200"
                       )}
                     >
                       {/* Sticky Column Header */}
-                      <div className="p-2.5 rounded-xl bg-gradient-to-r from-blue-700 to-indigo-700 text-white text-center shadow-xs mb-3 shrink-0">
+                      <div className="p-2.5 rounded-xl bg-gradient-to-r from-blue-700 to-indigo-700 text-white text-center shadow-xs shrink-0">
                         <div className="text-xs font-black tracking-wide uppercase flex items-center justify-center gap-1.5">
                           <span>Column {colNum}</span>
                           <ArrowDown className="h-3.5 w-3.5" />
@@ -1365,19 +1365,26 @@ export function RoomSeatingGrid({
                       </div>
 
                       {/* Benches in Column */}
-                      <div
-                        className={cn(
-                          columnDensity === "COMPACT"
-                            ? "space-y-2"
-                            : "space-y-3 max-h-[640px] overflow-y-auto pr-1 scrollbar-thin"
-                        )}
-                      >
-                        {colBenches.map((bench) =>
-                          columnDensity === "COMPACT"
-                            ? renderCompactBench(bench)
-                            : renderBench(bench)
-                        )}
-                      </div>
+                      {colBenches.length === 0 ? (
+                        <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-[11px] text-slate-400 font-mono">
+                          No desks in this column
+                        </div>
+                      ) : (
+                        <div
+                          className={cn(
+                            "w-full",
+                            columnDensity === "COMPACT"
+                              ? "space-y-2"
+                              : "space-y-3 max-h-[640px] overflow-y-auto pr-1 scrollbar-thin"
+                          )}
+                        >
+                          {colBenches.map((bench) =>
+                            columnDensity === "COMPACT"
+                              ? renderCompactBench(bench)
+                              : renderBench(bench)
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
