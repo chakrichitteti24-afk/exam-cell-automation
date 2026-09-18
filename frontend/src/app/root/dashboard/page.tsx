@@ -21,6 +21,9 @@ import {
   ChevronRight,
   Rocket,
   X,
+  Trash2,
+  Loader2,
+  Plus,
 } from "lucide-react";
 import { BentoGrid, BentoCard } from "@/components/ui/bento-grid";
 import {
@@ -47,6 +50,12 @@ export default function RootDashboardPage() {
   const [launchResult, setLaunchResult] = useState<ApiExamLaunchResponse | null>(null);
   const [showLaunchModal, setShowLaunchModal] = useState(false);
   const [allocationMode, setAllocationMode] = useState<"MULTI_EXAM" | "COMMON_EXAM">("MULTI_EXAM");
+
+  // ── Inline delete state ───────────────────────────────────────────────────
+  const [deleteRoomConfirm, setDeleteRoomConfirm] = useState<ApiRoom | null>(null);
+  const [deleteInvigConfirm, setDeleteInvigConfirm] = useState<ApiInvigilator | null>(null);
+  const [deleteExamConfirm, setDeleteExamConfirm] = useState<ApiExam | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
     if (authLoading || !isAuthenticated) return;
@@ -162,6 +171,48 @@ export default function RootDashboardPage() {
       alert(`Reset failed: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
       setIsAllocating(false);
+    }
+  };
+
+  const handleDeleteRoom = async () => {
+    if (!deleteRoomConfirm) return;
+    setDeletingId(deleteRoomConfirm.id);
+    try {
+      await api.rooms.delete(deleteRoomConfirm.id);
+      setDeleteRoomConfirm(null);
+      setRooms((prev) => prev.filter((r) => r.id !== deleteRoomConfirm.id));
+    } catch (err: unknown) {
+      alert(`Delete failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleDeleteInvigilator = async () => {
+    if (!deleteInvigConfirm) return;
+    setDeletingId(deleteInvigConfirm.id);
+    try {
+      await api.invigilators.delete(deleteInvigConfirm.id);
+      setDeleteInvigConfirm(null);
+      setInvigilators((prev) => prev.filter((i) => i.id !== deleteInvigConfirm.id));
+    } catch (err: unknown) {
+      alert(`Delete failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleDeleteExam = async () => {
+    if (!deleteExamConfirm) return;
+    setDeletingId(deleteExamConfirm.id);
+    try {
+      await api.exams.delete(deleteExamConfirm.id);
+      setDeleteExamConfirm(null);
+      setExams((prev) => prev.filter((e) => e.id !== deleteExamConfirm.id));
+    } catch (err: unknown) {
+      alert(`Delete failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -560,10 +611,11 @@ export default function RootDashboardPage() {
             </span>
           }
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 py-1">
+          <div className="space-y-2 py-1">
             {rooms.length === 0 ? (
-              <div className="col-span-full p-4 text-center text-xs text-slate-400">
-                No rooms configured. Add rooms in Rooms & Benches.
+              <div className="p-4 text-center text-xs text-slate-400">
+                No rooms configured.{" "}
+                <Link href="/root/rooms" className="text-blue-600 font-semibold hover:underline">+ Add a Hall</Link>
               </div>
             ) : (
               rooms.map((room) => {
@@ -573,38 +625,46 @@ export default function RootDashboardPage() {
                 return (
                   <div
                     key={room.id}
-                    className="p-3 rounded-xl border border-slate-200/90 bg-slate-50 flex flex-col justify-between"
+                    className="p-3 rounded-xl border border-slate-200/90 bg-slate-50 flex items-center gap-3"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs text-slate-900">
-                        Room {room.room_number}
-                      </span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded font-semibold bg-white/60 backdrop-blur-xl border-white/60 text-slate-600 border border-slate-200">
-                        {room.block}
-                      </span>
-                    </div>
-
-                    <div className="mt-2.5 space-y-1">
-                      {/* Clean Blue Progress Bar */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="font-bold text-xs text-slate-900">
+                          Room {room.room_number}
+                        </span>
+                        <span className="text-[10px] px-1.5 rounded font-semibold text-slate-600 border border-slate-200 bg-white">
+                          {room.block}
+                        </span>
+                      </div>
                       <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-blue-600 rounded-full transition-all duration-300"
                           style={{ width: `${fillPercent}%` }}
                         />
                       </div>
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-bold text-slate-800">
-                          {currentOccupancy} / {room.capacity}
-                        </span>
-                        <span className={currentOccupancy > 0 ? "text-blue-600 font-bold" : "text-slate-400 font-medium"}>
-                          {fillPercent}%
-                        </span>
+                      <div className="flex items-center justify-between text-[11px] mt-1">
+                        <span className="font-bold text-slate-800">{currentOccupancy} / {room.capacity}</span>
+                        <span className={currentOccupancy > 0 ? "text-blue-600 font-bold" : "text-slate-400"}>{fillPercent}%</span>
                       </div>
                     </div>
+                    <button
+                      onClick={() => setDeleteRoomConfirm(room)}
+                      disabled={deletingId === room.id}
+                      title={`Delete Room ${room.room_number}`}
+                      className="shrink-0 p-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:border-rose-300 transition disabled:opacity-40"
+                    >
+                      {deletingId === room.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    </button>
                   </div>
                 );
               })
             )}
+            <Link
+              href="/root/rooms"
+              className="flex items-center justify-center gap-1.5 w-full px-3 py-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold transition mt-1"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add Examination Hall
+            </Link>
           </div>
         </BentoCard>
 
@@ -779,6 +839,82 @@ export default function RootDashboardPage() {
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition"
               >
                 Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}\r\n\r\n      {/* ── Delete Room Confirm Modal ── */}
+      {deleteRoomConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="h-5 w-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Delete Hall?</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Permanently delete <strong>Room {deleteRoomConfirm.room_number}</strong> ({deleteRoomConfirm.block}) and all its benches &amp; allocations.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => setDeleteRoomConfirm(null)} className="flex-1 px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">Cancel</button>
+              <button onClick={handleDeleteRoom} disabled={deletingId !== null} className="flex-1 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition disabled:opacity-60 flex items-center justify-center gap-1.5">
+                {deletingId !== null ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Invigilator Confirm Modal ── */}
+      {deleteInvigConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="h-5 w-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Delete Invigilator?</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Permanently delete <strong>{deleteInvigConfirm.name}</strong> ({deleteInvigConfirm.faculty_id}) and their duty assignments.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => setDeleteInvigConfirm(null)} className="flex-1 px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">Cancel</button>
+              <button onClick={handleDeleteInvigilator} disabled={deletingId !== null} className="flex-1 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition disabled:opacity-60 flex items-center justify-center gap-1.5">
+                {deletingId !== null ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Exam Confirm Modal ── */}
+      {deleteExamConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="h-5 w-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Delete Exam?</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Permanently delete <strong>{deleteExamConfirm.subject_code}</strong> — {deleteExamConfirm.subject_name} and all its allocations.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => setDeleteExamConfirm(null)} className="flex-1 px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">Cancel</button>
+              <button onClick={handleDeleteExam} disabled={deletingId !== null} className="flex-1 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition disabled:opacity-60 flex items-center justify-center gap-1.5">
+                {deletingId !== null ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                Delete
               </button>
             </div>
           </div>
