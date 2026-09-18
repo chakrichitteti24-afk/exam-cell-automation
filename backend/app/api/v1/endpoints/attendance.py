@@ -33,10 +33,9 @@ def mark_student_attendance(
         assignment = db.execute(
             select(InvigilatorAllocation).where(
                 InvigilatorAllocation.invigilator_id == inv.id,
-                InvigilatorAllocation.exam_id == payload.exam_id,
                 InvigilatorAllocation.room_id == payload.room_id
             )
-        ).scalar_one_or_none()
+        ).first()
         if not assignment:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -109,10 +108,9 @@ def get_room_attendance_summary(
         assignment = db.execute(
             select(InvigilatorAllocation).where(
                 InvigilatorAllocation.invigilator_id == inv.id,
-                InvigilatorAllocation.exam_id == exam_id,
                 InvigilatorAllocation.room_id == room_id
             )
-        ).scalar_one_or_none()
+        ).first()
         if not assignment:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -139,10 +137,7 @@ def get_room_attendance_summary(
     present_count = sum(1 for r in records if r.status == "PRESENT")
     absent_count = sum(1 for r in records if r.status == "ABSENT")
     malpractice_count = sum(1 for r in records if r.status == "MALPRACTICE")
-
-    # If some candidates don't have records yet, default them to present
-    unrecorded = total_allocated - len(records)
-    present_count += unrecorded
+    unmarked_count = max(0, total_allocated - len(records))
 
     return {
         "room_id": room_id,
@@ -150,5 +145,6 @@ def get_room_attendance_summary(
         "total_allocated": total_allocated,
         "present_count": present_count,
         "absent_count": absent_count,
-        "malpractice_count": malpractice_count
+        "malpractice_count": malpractice_count,
+        "unmarked_count": unmarked_count
     }

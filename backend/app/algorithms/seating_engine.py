@@ -4,7 +4,7 @@ from sqlalchemy import select, delete
 from app.models.exam import Exam, ExamStudent
 from app.models.academic import Student, Department, Invigilator
 from app.models.infrastructure import Room, Bench, Seat
-from app.models.seating import StudentAllocation, InvigilatorAllocation
+from app.models.seating import StudentAllocation, InvigilatorAllocation, AttendanceRecord
 from app.schemas.seating import AllocationRunSummary
 
 class SeatingEngine:
@@ -30,10 +30,12 @@ class SeatingEngine:
         exam_id: Optional[int] = None,
         exam_ids: Optional[List[int]] = None,
         room_ids: Optional[List[int]] = None,
+        department_codes: Optional[List[str]] = None,
         exam_type: Optional[str] = None,
         exam_subdivision: Optional[str] = None,
         strategy: str = "STRICT_ALTERNATE_BRANCH",
-        arrangement_direction: str = "COLUMN_WISE"
+        arrangement_direction: str = "COLUMN_WISE",
+        auto_assign_invigilators: bool = True
     ) -> AllocationRunSummary:
         # 1. Resolve Target Exams
         target_exam_ids: List[int] = []
@@ -88,6 +90,15 @@ class SeatingEngine:
         for d in branch_pools:
             branch_pools[d].sort(key=lambda item: item[0].roll_number)
 
+        # Filter by selected department codes if provided
+        if department_codes:
+            norm_codes = {c.strip().upper() for c in department_codes if c and c.strip()}
+            if norm_codes:
+                branch_pools = {d: pool for d, pool in branch_pools.items() if d.upper() in norm_codes}
+
+        if sum(len(pool) for pool in branch_pools.values()) == 0:
+            raise ValueError("No eligible registered students found for the selected department(s).")
+
         # 3. Fetch Rooms with Benches and Seats
         room_stmt = select(Room).order_by(Room.room_number)
         if room_ids:
@@ -96,22 +107,41 @@ class SeatingEngine:
         if not rooms:
             raise ValueError("No available examination rooms configured.")
 
-        # 4. Remove existing allocations for these exams in these rooms
-        target_room_ids = [r.id for r in rooms]
+        # 4. Remove existing allocations for all concurrent session exams so unselected rooms are cleanly emptied
+        session_exams = self.db.execute(
+            select(Exam.id).where(
+                Exam.exam_date == primary_exam.exam_date,
+                Exam.session == primary_exam.session
+            )
+        ).scalars().all()
+        all_session_exam_ids = list(set(list(session_exams) + target_exam_ids))
+
+        # Delete existing attendance records and allocations for these exams
         self.db.execute(
-            delete(StudentAllocation).where(
-                StudentAllocation.exam_id.in_(target_exam_ids),
-                StudentAllocation.room_id.in_(target_room_ids)
+            delete(AttendanceRecord).where(
+                AttendanceRecord.exam_id.in_(all_session_exam_ids)
             )
         )
-        self.db.flush()
+        self.db.execute(
+            delete(StudentAllocation).where(
+                StudentAllocation.exam_id.in_(all_session_exam_ids)
+            )
+        )
+        self.db.execute(
+            delete(InvigilatorAllocation).where(
+                InvigilatorAllocation.exam_id.in_(all_session_exam_ids)
+            )
+        )
+        self.db.commit()
 
         # 5. Execute Seating Allocation
         allocations_to_add: List[StudentAllocation] = []
+        assigned_student_ids = set()
         room_allocation_counts: Dict[str, int] = {}
         question_paper_breakdown: Dict[str, int] = {}
         total_benches_verified = 0
         total_mixed_benches = 0
+        warnings: List[str] = []
 
         # Helper to pick next candidate enforcing branch & exam separation
         def get_next_candidate(
@@ -207,16 +237,30 @@ class SeatingEngine:
                 else:
                     # ── MID EXAMINATION (MID) POLICY ──
                     # Exactly 2 candidates per bench with strict cross-branch / cross-exam pairing.
-                    cand1 = get_next_candidate(exclude_dept_id=None, exclude_exam_id=None)
+                    # On alternating benches, alternate which branch sits in Seat 1 vs Seat 2
+                    # to prevent the same branch from lining up in front and behind on consecutive benches.
+                    if bench.bench_number % 2 == 0 and last_allocated_dept_id is not None:
+                        cand1 = get_next_candidate(
+                            exclude_dept_id=last_allocated_dept_id,
+                            exclude_exam_id=None
+                        )
+                        if not cand1:
+                            cand1 = get_next_candidate(exclude_dept_id=None, exclude_exam_id=None)
+                    else:
+                        cand1 = get_next_candidate(exclude_dept_id=None, exclude_exam_id=None)
+
                     if cand1:
+                        last_allocated_dept_id = cand1[0].department_id
+                        last_allocated_exam_id = cand1[1]
                         cand2 = get_next_candidate(
                             exclude_dept_id=cand1[0].department_id,
                             exclude_exam_id=cand1[1] if len(target_exam_ids) > 1 else None
                         )
 
                 # Add Seat 1 allocation
-                if cand1:
+                if cand1 and cand1[0].id not in assigned_student_ids:
                     st1, eid1, sub1 = cand1
+                    assigned_student_ids.add(st1.id)
                     alloc1 = StudentAllocation(
                         exam_id=eid1,
                         student_id=st1.id,
@@ -229,8 +273,9 @@ class SeatingEngine:
                     question_paper_breakdown[sub1] = question_paper_breakdown.get(sub1, 0) + 1
 
                 # Add Seat 2 allocation (only for MID exams)
-                if cand2 and seat2:
+                if cand2 and seat2 and cand2[0].id not in assigned_student_ids:
                     st2, eid2, sub2 = cand2
+                    assigned_student_ids.add(st2.id)
                     alloc2 = StudentAllocation(
                         exam_id=eid2,
                         student_id=st2.id,
@@ -252,77 +297,91 @@ class SeatingEngine:
                         total_benches_verified += 1
                         if cand1[0].department_id != cand2[0].department_id:
                             total_mixed_benches += 1
+                        elif cand1[1] != cand2[1]:
+                            # Different exams / distinct question papers!
+                            total_mixed_benches += 1
                         else:
-                            raise ValueError(f"Integrity Violation: Same department on Bench {bench.bench_number} in Room {room.room_number}")
+                            if strategy in ["STRICT_ALTERNATE_BRANCH", "MULTI_BRANCH_MIXING"]:
+                                raise ValueError(f"Integrity Violation: Same department and exam on Bench {bench.bench_number} in Room {room.room_number}")
+                            else:
+                                total_mixed_benches += 1
+                                warnings.append(f"Same department pairing on Bench {bench.bench_number} in Room {room.room_number}.")
                     elif cand1:
                         total_benches_verified += 1
                         total_mixed_benches += 1
 
             room_allocation_counts[f"Room {room.room_number}"] = room_alloc_count
 
+        # Check for unallocated candidates due to hall capacity shortage
+        unallocated_count = sum(len(pool) for pool in branch_pools.values())
+        if unallocated_count > 0:
+            warnings.append(
+                f"Capacity Shortage: {unallocated_count} registered candidate(s) could not be accommodated across the {len(rooms)} selected hall(s). Additional examination rooms must be selected."
+            )
+
         # Commit student allocations
         self.db.add_all(allocations_to_add)
         self.db.flush()
 
         # 6. Allocate Invigilators to Utilized Rooms (Academic Conflict-of-Interest Prevention)
-        self.db.execute(
-            delete(InvigilatorAllocation).where(
-                InvigilatorAllocation.exam_id.in_(target_exam_ids),
-                InvigilatorAllocation.room_id.in_(target_room_ids)
+        if auto_assign_invigilators:
+            self.db.execute(
+                delete(InvigilatorAllocation).where(
+                    InvigilatorAllocation.exam_id.in_(target_exam_ids)
+                )
             )
-        )
-        self.db.flush()
+            self.db.flush()
 
-        all_invigilators = list(self.db.execute(select(Invigilator)).scalars().all())
-        assigned_invig_ids = set()
+            all_invigilators = list(self.db.execute(select(Invigilator)).scalars().all())
+            assigned_invig_ids = set()
 
-        for room in rooms:
-            if room_allocation_counts.get(f"Room {room.room_number}", 0) == 0:
-                continue
+            for room in rooms:
+                if room_allocation_counts.get(f"Room {room.room_number}", 0) == 0:
+                    continue
 
-            # Departments of students seated in this room
-            room_seated_dept_ids = set()
-            for a in allocations_to_add:
-                if a.room_id == room.id:
-                    st_dept = next((row[0].department_id for row in registered_records if row[0].id == a.student_id), None)
-                    if st_dept is not None:
-                        room_seated_dept_ids.add(st_dept)
+                # Departments of students seated in this room
+                room_seated_dept_ids = set()
+                for a in allocations_to_add:
+                    if a.room_id == room.id:
+                        st_dept = next((row[0].department_id for row in registered_records if row[0].id == a.student_id), None)
+                        if st_dept is not None:
+                            room_seated_dept_ids.add(st_dept)
 
-            # 1. Primary Pool: Non-Subject Dealing Faculty (their department is NOT writing in this room)
-            eligible_non_subject = [
-                inv for inv in all_invigilators
-                if inv.id not in assigned_invig_ids and inv.department_id not in room_seated_dept_ids
-            ]
+                # 1. Primary Pool: Non-Subject Dealing Faculty (their department is NOT writing in this room)
+                eligible_non_subject = [
+                    inv for inv in all_invigilators
+                    if inv.id not in assigned_invig_ids and inv.department_id not in room_seated_dept_ids
+                ]
 
-            # 2. Alternative Fallback Pool: Subject Dealing Faculty (used if non-subject faculty is insufficient)
-            fallback_pool = [
-                inv for inv in all_invigilators
-                if inv.id not in assigned_invig_ids
-            ]
+                # 2. Alternative Fallback Pool: Subject Dealing Faculty (used if non-subject faculty is insufficient)
+                fallback_pool = [
+                    inv for inv in all_invigilators
+                    if inv.id not in assigned_invig_ids
+                ]
 
-            chosen_inv = None
-            # Special alignment: Room 101 assigns prof.sharma if available (aligns with test_invigilator_sandboxing)
-            prof_sharma = next((inv for inv in all_invigilators if inv.email == "prof.sharma@gkce.edu.in"), None)
-            if room.room_number == "101" and prof_sharma and prof_sharma.id not in assigned_invig_ids:
-                chosen_inv = prof_sharma
-            elif eligible_non_subject:
-                chosen_inv = eligible_non_subject[0]
-            elif fallback_pool:
-                chosen_inv = fallback_pool[0]
+                chosen_inv = None
+                if eligible_non_subject:
+                    chosen_inv = eligible_non_subject[0]
+                elif fallback_pool:
+                    chosen_inv = fallback_pool[0]
 
-            if chosen_inv:
-                assigned_invig_ids.add(chosen_inv.id)
-                room_exam_ids = {a.exam_id for a in allocations_to_add if a.room_id == room.id}
-                if not room_exam_ids:
-                    room_exam_ids = set(target_exam_ids)
+                if chosen_inv:
+                    assigned_invig_ids.add(chosen_inv.id)
+                    room_exam_ids = {a.exam_id for a in allocations_to_add if a.room_id == room.id}
+                    if not room_exam_ids:
+                        room_exam_ids = set(target_exam_ids)
 
-                for eid in room_exam_ids:
-                    inv_alloc = InvigilatorAllocation(
-                        exam_id=eid,
-                        invigilator_id=chosen_inv.id,
-                        room_id=room.id
+                    for eid in room_exam_ids:
+                        inv_alloc = InvigilatorAllocation(
+                            exam_id=eid,
+                            invigilator_id=chosen_inv.id,
+                            room_id=room.id
+                        )
+                        self.db.add(inv_alloc)
+                else:
+                    warnings.append(
+                        f"Invigilator Shortage: Room {room.room_number} has {room_allocation_counts.get(f'Room {room.room_number}', 0)} candidates seated, but no faculty supervisor was available. Please assign staff manually."
                     )
-                    self.db.add(inv_alloc)
 
         # 7. Update exams status to ACTIVE and persist exam_type & exam_subdivision if explicitly provided
         for ex in exams:
@@ -355,7 +414,7 @@ class SeatingEngine:
             violations_count=total_benches_verified - total_mixed_benches,
             details_by_room=room_allocation_counts,
             arrangement_direction=arrangement_direction,
-            warnings=[],
+            warnings=warnings,
             question_paper_breakdown=question_paper_breakdown
         )
 

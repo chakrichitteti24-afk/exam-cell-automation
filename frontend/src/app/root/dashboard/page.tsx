@@ -183,11 +183,11 @@ export default function RootDashboardPage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {/* Secondary White Button */}
           <Link
             href="/root/students"
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/60 backdrop-blur-xl border-white/60 border border-slate-300 hover:bg-slate-50 text-slate-800 shadow-2xs transition"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2.5 sm:py-2 rounded-xl text-xs font-semibold bg-white/60 backdrop-blur-xl border-white/60 border border-slate-300 hover:bg-slate-50 text-slate-800 shadow-2xs transition touch-target sm:touch-auto"
           >
             <UploadCloud className="h-3.5 w-3.5 text-slate-500" />
             <span>Import Candidates</span>
@@ -197,14 +197,14 @@ export default function RootDashboardPage() {
           <button
             onClick={handleRunSeatingEngine}
             disabled={isAllocating || isLaunching || exams.length === 0}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-blue-700 hover:bg-blue-800 active:bg-blue-900 disabled:opacity-50 text-white shadow-sm shadow-blue-700/20 transition"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl text-xs font-semibold bg-blue-700 hover:bg-blue-800 active:bg-blue-900 disabled:opacity-50 text-white shadow-sm shadow-blue-700/20 transition touch-target sm:touch-auto"
           >
             <Sparkles className={`h-3.5 w-3.5 ${isAllocating ? "animate-spin" : ""}`} />
             <span>
               {isAllocating
                 ? "Allocating Seats..."
                 : isAllocated
-                ? "Re-run Seating Engine"
+                ? "Re-run Engine"
                 : "Run Seating Engine"}
             </span>
           </button>
@@ -213,7 +213,7 @@ export default function RootDashboardPage() {
           <button
             onClick={handleLaunchExamSession}
             disabled={isAllocating || isLaunching || exams.length === 0}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 text-white shadow-sm shadow-emerald-600/20 transition"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 text-white shadow-sm shadow-emerald-600/20 transition touch-target sm:touch-auto"
           >
             <Rocket className={`h-3.5 w-3.5 ${isLaunching ? "animate-bounce" : ""}`} />
             <span>
@@ -281,32 +281,32 @@ export default function RootDashboardPage() {
 
             {/* Visual KPI Strip */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Allocated</span>
-                <div className="text-2xl font-black text-slate-900 mt-0.5">
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 shadow-2xs hover:border-slate-300 transition">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Allocated</span>
+                <div className="text-3xl font-black font-mono text-slate-900 mt-0.5">
                   {loading ? "..." : allocatedStudents}
                 </div>
-                <span className={`text-[10px] font-semibold ${isAllocated ? "text-emerald-700" : "text-amber-700"}`}>
+                <span className={`text-[10px] font-bold ${isAllocated ? "text-emerald-700" : "text-amber-700"}`}>
                   {isAllocated ? `${summary?.total_rooms_utilized ?? 0} Halls Occupied` : "Pending Run"}
                 </span>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Branch Mixing</span>
-                <div className="text-2xl font-black text-slate-900 mt-0.5">
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 shadow-2xs hover:border-slate-300 transition">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Branch Mixing</span>
+                <div className="text-3xl font-black font-mono text-slate-900 mt-0.5">
                   {loading ? "..." : `${mixingCompliance}%`}
                 </div>
-                <span className="text-[10px] text-blue-700 font-semibold">
+                <span className="text-[10px] text-blue-700 font-bold">
                   {isAllocated ? "Cross-Branch Benches" : "Optimal Guarantee"}
                 </span>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Security Rule</span>
-                <div className="text-2xl font-black text-slate-900 mt-0.5">
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 shadow-2xs hover:border-slate-300 transition">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Security Rule</span>
+                <div className="text-2xl font-black font-mono text-slate-900 mt-0.5">
                   Distinct QPs
                 </div>
-                <span className="text-[10px] text-slate-500 font-medium">
+                <span className="text-[10px] text-emerald-700 font-bold">
                   Neighbour Mixing
                 </span>
               </div>
@@ -396,7 +396,7 @@ export default function RootDashboardPage() {
         >
           <div className="flex flex-col justify-between h-full space-y-4">
             <div>
-              <div className="text-3xl font-black text-slate-900">
+              <div className="text-4xl font-black font-mono text-slate-900">
                 {loading ? "..." : totalStudents}
               </div>
               <p className="text-xs text-slate-500 mt-1">
@@ -424,14 +424,14 @@ export default function RootDashboardPage() {
           subtitle="Configured capacity"
           icon={<DoorOpen className="h-5 w-5" />}
           badge={
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/60">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200/60">
               {loading ? "..." : `${totalRooms} Halls`}
             </span>
           }
         >
           <div className="flex flex-col justify-between h-full space-y-4">
             <div>
-              <div className="text-3xl font-black text-slate-900">
+              <div className="text-4xl font-black font-mono text-slate-900">
                 {loading ? "..." : totalCapacity}{" "}
                 <span className="text-xs font-normal text-slate-400">Seats</span>
               </div>
@@ -460,14 +460,14 @@ export default function RootDashboardPage() {
           subtitle="Faculty supervisors"
           icon={<UserCheck className="h-5 w-5" />}
           badge={
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/60">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/60">
               Faculty
             </span>
           }
         >
           <div className="flex flex-col justify-between h-full space-y-4">
             <div>
-              <div className="text-3xl font-black text-slate-900">
+              <div className="text-4xl font-black font-mono text-slate-900">
                 {loading ? "..." : invigilators.length}
               </div>
               <p className="text-xs text-slate-500 mt-1">
@@ -497,14 +497,14 @@ export default function RootDashboardPage() {
           subtitle="Examination calendar"
           icon={<Calendar className="h-5 w-5" />}
           badge={
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/60">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200/60">
               {loading ? "..." : `${activeExams} Active`}
             </span>
           }
         >
           <div className="flex flex-col justify-between h-full space-y-4">
             <div>
-              <div className="text-3xl font-black text-slate-900">
+              <div className="text-4xl font-black font-mono text-slate-900">
                 {loading ? "..." : exams.length}
               </div>
               <p className="text-xs text-slate-500 mt-1">
@@ -643,7 +643,7 @@ export default function RootDashboardPage() {
       {/* ── Exam Launch Confirmation / Duty Roster Modal ── */}
       {showLaunchModal && launchResult && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-          <div className="bg-white/60 backdrop-blur-xl border-white/60 rounded-2xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white/95 backdrop-blur-xl border border-slate-200 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/70">
               <div className="flex items-center gap-2.5">

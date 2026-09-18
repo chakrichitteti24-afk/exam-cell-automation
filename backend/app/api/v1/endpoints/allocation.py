@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from app.db.session import get_db
 from app.api.deps import require_role, get_current_user
 from app.models.user import User
@@ -39,15 +39,23 @@ def generate_seating_allocation(
             exam_id=payload.exam_id,
             exam_ids=payload.exam_ids,
             room_ids=payload.room_ids,
+            department_codes=payload.department_codes,
             exam_type=payload.exam_type,
             exam_subdivision=payload.exam_subdivision,
             strategy=payload.strategy,
             arrangement_direction=payload.arrangement_direction or "COLUMN_WISE"
         )
         return summary
-    except Exception as e:
+    except ValueError as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        db.rollback()
+        print(f"[ALLOCATION ERROR] Internal allocation failure: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Seating allocation failed: {e}"
+        )
 
 @router.get("/room/{room_id}/exam/{exam_id}", response_model=RoomSeatingMatrixResponse)
 def get_room_seating_matrix(
@@ -105,6 +113,47 @@ def get_room_seating_matrix(
     benches = db.execute(
         select(Bench).where(Bench.room_id == room.id).order_by(Bench.bench_number)
     ).scalars().all()
+    bench_ids = [b.id for b in benches]
+
+    # Bulk fetch seats
+    all_seats = []
+    if bench_ids:
+        all_seats = db.execute(
+            select(Seat).where(Seat.bench_id.in_(bench_ids)).order_by(Seat.bench_id, Seat.seat_number)
+        ).scalars().all()
+        
+    from collections import defaultdict
+    seat_map = defaultdict(list)
+    for seat in all_seats:
+        seat_map[seat.bench_id].append(seat)
+
+    # Bulk fetch allocations for this room and exams
+    allocs = db.execute(
+        select(StudentAllocation).where(
+            StudentAllocation.room_id == room.id,
+            StudentAllocation.exam_id.in_(concurrent_exam_ids)
+        )
+    ).scalars().all()
+    alloc_map = {a.seat_id: a for a in allocs}
+
+    # Bulk fetch related data
+    student_ids = [a.student_id for a in allocs]
+    students = db.execute(select(Student).where(Student.id.in_(student_ids))).scalars().all() if student_ids else []
+    student_map = {s.id: s for s in students}
+
+    all_depts = db.execute(select(Department)).scalars().all()
+    dept_map = {d.id: d.code for d in all_depts}
+
+    all_exams = db.execute(select(Exam).where(Exam.id.in_(concurrent_exam_ids))).scalars().all()
+    exam_map = {e.id: e for e in all_exams}
+
+    att_records = db.execute(
+        select(AttendanceRecord).where(
+            AttendanceRecord.student_id.in_(student_ids),
+            AttendanceRecord.exam_id.in_(concurrent_exam_ids)
+        )
+    ).scalars().all() if student_ids else []
+    att_map = {(att.exam_id, att.student_id): att for att in att_records}
 
     bench_seating_list: List[BenchSeating] = []
     dept_breakdown: Dict[str, int] = {}
@@ -112,42 +161,25 @@ def get_room_seating_matrix(
     mixed_benches = 0
 
     for bench in benches:
-        seats = db.execute(
-            select(Seat).where(Seat.bench_id == bench.id).order_by(Seat.seat_number)
-        ).scalars().all()
+        seats = seat_map.get(bench.id, [])
 
         s1_student: Optional[SeatStudent] = None
         s2_student: Optional[SeatStudent] = None
 
         if len(seats) > 0:
-            alloc1 = db.execute(
-                select(StudentAllocation).where(
-                    StudentAllocation.room_id == room.id,
-                    StudentAllocation.seat_id == seats[0].id,
-                    StudentAllocation.exam_id.in_(concurrent_exam_ids)
-                )
-            ).scalar_one_or_none()
+            alloc1 = alloc_map.get(seats[0].id)
             if alloc1:
-                st = db.execute(select(Student).where(Student.id == alloc1.student_id)).scalar_one_or_none()
-                dept = db.execute(select(Department).where(Department.id == st.department_id)).scalar_one_or_none() if st else None
-                dept_code = dept.code if dept else "GEN"
+                st = student_map.get(alloc1.student_id)
+                dept_code = dept_map.get(st.department_id) if st else "GEN"
                 dept_breakdown[dept_code] = dept_breakdown.get(dept_code, 0) + 1
                 
-                # Cand exam info
-                cand_exam1 = db.execute(select(Exam).where(Exam.id == alloc1.exam_id)).scalar_one_or_none()
-
-                # Attendance check
-                att = db.execute(
-                    select(AttendanceRecord).where(
-                        AttendanceRecord.exam_id == alloc1.exam_id,
-                        AttendanceRecord.student_id == st.id
-                    )
-                ).scalar_one_or_none()
+                cand_exam1 = exam_map.get(alloc1.exam_id)
+                att = att_map.get((alloc1.exam_id, st.id)) if st else None
 
                 s1_student = SeatStudent(
-                    student_id=st.id,
-                    roll_number=st.roll_number,
-                    name=st.name,
+                    student_id=st.id if st else 0,
+                    roll_number=st.roll_number if st else "",
+                    name=st.name if st else "",
                     department_code=dept_code,
                     seat_id=seats[0].id,
                     seat_number=1,
@@ -158,33 +190,19 @@ def get_room_seating_matrix(
                 )
 
         if len(seats) > 1:
-            alloc2 = db.execute(
-                select(StudentAllocation).where(
-                    StudentAllocation.room_id == room.id,
-                    StudentAllocation.seat_id == seats[1].id,
-                    StudentAllocation.exam_id.in_(concurrent_exam_ids)
-                )
-            ).scalar_one_or_none()
+            alloc2 = alloc_map.get(seats[1].id)
             if alloc2:
-                st2 = db.execute(select(Student).where(Student.id == alloc2.student_id)).scalar_one_or_none()
-                dept2 = db.execute(select(Department).where(Department.id == st2.department_id)).scalar_one_or_none() if st2 else None
-                dept_code2 = dept2.code if dept2 else "GEN"
+                st2 = student_map.get(alloc2.student_id)
+                dept_code2 = dept_map.get(st2.department_id) if st2 else "GEN"
                 dept_breakdown[dept_code2] = dept_breakdown.get(dept_code2, 0) + 1
 
-                # Cand exam info
-                cand_exam2 = db.execute(select(Exam).where(Exam.id == alloc2.exam_id)).scalar_one_or_none()
-
-                att2 = db.execute(
-                    select(AttendanceRecord).where(
-                        AttendanceRecord.exam_id == alloc2.exam_id,
-                        AttendanceRecord.student_id == st2.id
-                    )
-                ).scalar_one_or_none()
+                cand_exam2 = exam_map.get(alloc2.exam_id)
+                att2 = att_map.get((alloc2.exam_id, st2.id)) if st2 else None
 
                 s2_student = SeatStudent(
-                    student_id=st2.id,
-                    roll_number=st2.roll_number,
-                    name=st2.name,
+                    student_id=st2.id if st2 else 0,
+                    roll_number=st2.roll_number if st2 else "",
+                    name=st2.name if st2 else "",
                     department_code=dept_code2,
                     seat_id=seats[1].id,
                     seat_number=2,
@@ -221,7 +239,7 @@ def get_room_seating_matrix(
             )
         )
 
-    compliance = 100.0 if (occupied_benches > 0 and mixed_benches == occupied_benches) else (100.0 if occupied_benches > 0 else 0.0)
+    compliance = round((mixed_benches / occupied_benches) * 100.0, 1) if occupied_benches > 0 else 100.0
     allocated_count = sum(dept_breakdown.values())
     exam_type = getattr(base_exam, "exam_type", "MID") if base_exam else "MID"
     exam_subdivision = getattr(base_exam, "exam_subdivision", "MID_1" if exam_type == "MID" else "REGULAR") if base_exam else "MID_1"
@@ -245,90 +263,118 @@ def get_room_seating_matrix(
         arrangement_direction="COLUMN_WISE"
     )
 
-@router.get("/student/me", response_model=StudentDeskSlipResponse)
+@router.get("/student/me", response_model=List[StudentDeskSlipResponse])
 def get_my_desk_slip(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(["STUDENT"]))
 ):
     """
-    Return digital desk slip for the authenticated student.
+    Return digital desk slip(s) for the authenticated student.
     Guarantees isolation: students cannot access anyone else's allocation.
+    Bulk-fetches all related models to eliminate N+1 latency.
     """
     student = db.execute(select(Student).where(Student.user_id == current_user.id)).scalar_one_or_none()
     if not student:
         raise HTTPException(status_code=404, detail="Student profile not found.")
 
-    # Find allocation for student
-    alloc = db.execute(
+    # Find all allocations for student
+    allocs = db.execute(
         select(StudentAllocation).where(StudentAllocation.student_id == student.id)
-    ).scalars().first()
-    if not alloc:
-        raise HTTPException(status_code=404, detail="No active exam seating allocation found for this candidate.")
+    ).scalars().all()
+    if not allocs:
+        return []
 
-    exam = db.execute(select(Exam).where(Exam.id == alloc.exam_id)).scalar_one_or_none()
-    room = db.execute(select(Room).where(Room.id == alloc.room_id)).scalar_one_or_none()
-    bench = db.execute(select(Bench).where(Bench.id == alloc.bench_id)).scalar_one_or_none()
-    seat = db.execute(select(Seat).where(Seat.id == alloc.seat_id)).scalar_one_or_none()
+    exam_ids = list({a.exam_id for a in allocs})
+    room_ids = list({a.room_id for a in allocs})
+    bench_ids = list({a.bench_id for a in allocs})
+    seat_ids = list({a.seat_id for a in allocs})
+
+    # Bulk fetch entities
+    exams = {e.id: e for e in db.execute(select(Exam).where(Exam.id.in_(exam_ids))).scalars().all()}
+    rooms = {r.id: r for r in db.execute(select(Room).where(Room.id.in_(room_ids))).scalars().all()}
+    benches = {b.id: b for b in db.execute(select(Bench).where(Bench.id.in_(bench_ids))).scalars().all()}
+    seats = {s.id: s for s in db.execute(select(Seat).where(Seat.id.in_(seat_ids))).scalars().all()}
     dept = db.execute(select(Department).where(Department.id == student.department_id)).scalar_one_or_none()
 
-    # Find partner on the same bench (any exam in the same session)
-    partner_alloc = db.execute(
+    # Bulk fetch potential bench partners
+    partner_allocs = db.execute(
         select(StudentAllocation).where(
-            StudentAllocation.bench_id == alloc.bench_id,
+            StudentAllocation.bench_id.in_(bench_ids),
             StudentAllocation.student_id != student.id
         )
-    ).scalars().first()
+    ).scalars().all()
+    partner_by_bench = {p.bench_id: p for p in partner_allocs}
 
-    partner_dept_code = None
-    partner_sub_code = None
-    partner_sub_name = None
-    if partner_alloc:
-        partner_st = db.execute(select(Student).where(Student.id == partner_alloc.student_id)).scalar_one_or_none()
-        if partner_st:
-            partner_dept = db.execute(select(Department).where(Department.id == partner_st.department_id)).scalar_one_or_none()
-            partner_dept_code = partner_dept.code if partner_dept else None
-        partner_exam = db.execute(select(Exam).where(Exam.id == partner_alloc.exam_id)).scalar_one_or_none()
-        if partner_exam:
-            partner_sub_code = partner_exam.subject_code
-            partner_sub_name = partner_exam.subject_name
+    partner_st_ids = [p.student_id for p in partner_allocs]
+    partner_students = {s.id: s for s in db.execute(select(Student).where(Student.id.in_(partner_st_ids))).scalars().all()} if partner_st_ids else {}
+    
+    partner_exam_ids = [p.exam_id for p in partner_allocs]
+    partner_exams = {e.id: e for e in db.execute(select(Exam).where(Exam.id.in_(partner_exam_ids))).scalars().all()} if partner_exam_ids else {}
 
-    exam_type = getattr(exam, "exam_type", "MID") if exam else "MID"
-    if exam_type == "SEM":
+    all_depts = {d.id: d.code for d in db.execute(select(Department)).scalars().all()}
+
+    slips: List[StudentDeskSlipResponse] = []
+    for alloc in allocs:
+        exam = exams.get(alloc.exam_id)
+        room = rooms.get(alloc.room_id)
+        bench = benches.get(alloc.bench_id)
+        seat = seats.get(alloc.seat_id)
+        if not (exam and room and bench and seat):
+            continue
+
         partner_dept_code = None
         partner_sub_code = None
-        partner_sub_name = "Single-Seater Policy (Semester Examination)"
+        partner_sub_name = None
 
-    qr_payload = f"GKCE-HALLTICKET:{student.roll_number}:{exam.subject_code}:ROOM{room.room_number}:BENCH{bench.bench_number}:SEAT{seat.seat_number}"
+        exam_type = getattr(exam, "exam_type", "MID") if exam else "MID"
+        if exam_type == "SEM":
+            partner_sub_name = "Single-Seater Policy (Semester Examination)"
+        else:
+            partner_alloc = partner_by_bench.get(alloc.bench_id)
+            if partner_alloc:
+                partner_st = partner_students.get(partner_alloc.student_id)
+                if partner_st:
+                    partner_dept_code = all_depts.get(partner_st.department_id)
+                partner_ex = partner_exams.get(partner_alloc.exam_id)
+                if partner_ex:
+                    partner_sub_code = partner_ex.subject_code
+                    partner_sub_name = partner_ex.subject_name
 
-    return StudentDeskSlipResponse(
-        student_id=student.id,
-        roll_number=student.roll_number,
-        student_name=student.name,
-        department_code=dept.code if dept else "N/A",
-        semester=student.semester,
-        academic_year=student.academic_year,
-        exam_id=exam.id,
-        subject_code=exam.subject_code,
-        subject_name=exam.subject_name,
-        exam_date=exam.exam_date,
-        exam_type=exam_type,
-        exam_subdivision=getattr(exam, "exam_subdivision", "MID_1" if exam_type == "MID" else "REGULAR"),
-        time_slot=f"{exam.start_time} - {exam.end_time}",
-        room_id=room.id,
-        room_number=room.room_number,
-        block=room.block,
-        floor=room.floor,
-        bench_number=bench.bench_number,
-        seat_number=seat.seat_number,
-        seat_label=seat.seat_label,
-        partner_department=partner_dept_code,
-        partner_subject_code=partner_sub_code,
-        partner_subject_name=partner_sub_name,
-        qr_payload=qr_payload,
-        total_benches=room.total_benches or 24,
-        row_index=bench.row_index or (((bench.bench_number - 1) // 4) + 1),
-        col_index=bench.col_index or (((bench.bench_number - 1) % 4) + 1)
-    )
+        qr_payload = f"GKCE-HALLTICKET:{student.roll_number}:{exam.subject_code}:ROOM{room.room_number}:BENCH{bench.bench_number}:SEAT{seat.seat_number}"
+
+        slips.append(
+            StudentDeskSlipResponse(
+                student_id=student.id,
+                roll_number=student.roll_number,
+                student_name=student.name,
+                department_code=dept.code if dept else "N/A",
+                semester=student.semester,
+                academic_year=student.academic_year,
+                exam_id=exam.id,
+                subject_code=exam.subject_code,
+                subject_name=exam.subject_name,
+                exam_date=exam.exam_date,
+                exam_type=exam_type,
+                exam_subdivision=getattr(exam, "exam_subdivision", "MID_1" if exam_type == "MID" else "REGULAR"),
+                time_slot=f"{exam.start_time} - {exam.end_time}",
+                room_id=room.id,
+                room_number=room.room_number,
+                block=room.block,
+                floor=str(room.floor) if room.floor is not None else None,
+                bench_number=bench.bench_number,
+                seat_number=seat.seat_number,
+                seat_label=seat.seat_label,
+                partner_department=partner_dept_code,
+                partner_subject_code=partner_sub_code,
+                partner_subject_name=partner_sub_name,
+                qr_payload=qr_payload,
+                total_benches=room.total_benches or 24,
+                row_index=bench.row_index or (((bench.bench_number - 1) // 4) + 1),
+                col_index=bench.col_index or (((bench.bench_number - 1) % 4) + 1)
+            )
+        )
+
+    return slips
 
 @router.get("/reports/door-notice/{room_id}/exam/{exam_id}", response_model=DoorNoticeResponse)
 def get_door_notice_report(
@@ -385,29 +431,40 @@ def get_door_notice_report(
     benches_used = set()
     question_paper_breakdown: Dict[str, int] = {}
 
-    for a in allocs:
-        st = db.execute(select(Student).where(Student.id == a.student_id)).scalar_one_or_none()
-        dept = db.execute(select(Department).where(Department.id == st.department_id)).scalar_one_or_none() if st else None
-        bench = db.execute(select(Bench).where(Bench.id == a.bench_id)).scalar_one_or_none()
-        seat = db.execute(select(Seat).where(Seat.id == a.seat_id)).scalar_one_or_none()
-        cand_exam = db.execute(select(Exam).where(Exam.id == a.exam_id)).scalar_one_or_none()
-        
-        if bench:
-            benches_used.add(bench.id)
+    if allocs:
+        student_ids = list({a.student_id for a in allocs})
+        bench_ids = list({a.bench_id for a in allocs})
+        seat_ids = list({a.seat_id for a in allocs})
 
-        sub_code = cand_exam.subject_code if cand_exam else "EXAM"
-        question_paper_breakdown[sub_code] = question_paper_breakdown.get(sub_code, 0) + 1
+        students_map = {s.id: s for s in db.execute(select(Student).where(Student.id.in_(student_ids))).scalars().all()}
+        benches_map = {b.id: b for b in db.execute(select(Bench).where(Bench.id.in_(bench_ids))).scalars().all()}
+        seats_map = {s.id: s for s in db.execute(select(Seat).where(Seat.id.in_(seat_ids))).scalars().all()}
+        cand_exams_map = {e.id: e for e in db.execute(select(Exam).where(Exam.id.in_(concurrent_exam_ids))).scalars().all()}
+        all_depts_map = {d.id: d.code for d in db.execute(select(Department)).scalars().all()}
 
-        students_list.append(
-            DoorNoticeStudent(
-                seat_number=seat.seat_number if seat else 1,
-                bench_number=bench.bench_number if bench else 1,
-                roll_number=st.roll_number if st else "",
-                name=st.name if st else "",
-                department=dept.code if dept else "GEN",
-                subject_code=sub_code
+        for a in allocs:
+            st = students_map.get(a.student_id)
+            dept_code = all_depts_map.get(st.department_id, "GEN") if st else "GEN"
+            bench = benches_map.get(a.bench_id)
+            seat = seats_map.get(a.seat_id)
+            cand_exam = cand_exams_map.get(a.exam_id)
+
+            if bench:
+                benches_used.add(bench.id)
+
+            sub_code = cand_exam.subject_code if cand_exam else "EXAM"
+            question_paper_breakdown[sub_code] = question_paper_breakdown.get(sub_code, 0) + 1
+
+            students_list.append(
+                DoorNoticeStudent(
+                    seat_number=seat.seat_number if seat else 1,
+                    bench_number=bench.bench_number if bench else 1,
+                    roll_number=st.roll_number if st else "",
+                    name=st.name if st else "",
+                    department=dept_code,
+                    subject_code=sub_code
+                )
             )
-        )
 
     # Sort students by bench_number, seat_number
     students_list.sort(key=lambda s: (s.bench_number, s.seat_number))
@@ -437,23 +494,27 @@ def get_allocation_global_summary(
 ):
     """
     Return global statistics on examination seating allocations.
+    Uses ultra-fast SQL aggregation instead of loading all rows.
     Restricted strictly to ROOT administrators.
     """
-    total_allocations = db.execute(select(StudentAllocation)).scalars().all()
-    exams = db.execute(select(Exam)).scalars().all()
-    rooms = db.execute(select(Room)).scalars().all()
-    
-    unique_rooms = set(a.room_id for a in total_allocations)
-    room_occupancy: Dict[int, int] = {}
-    for a in total_allocations:
-        room_occupancy[a.room_id] = room_occupancy.get(a.room_id, 0) + 1
-    
+    total_students_allocated = db.execute(select(func.count(StudentAllocation.id))).scalar() or 0
+    total_active_exams = db.execute(select(func.count(Exam.id))).scalar() or 0
+    total_rooms_available = db.execute(select(func.count(Room.id))).scalar() or 0
+
+    # Room occupancy via SQL aggregation
+    occupancy_rows = db.execute(
+        select(StudentAllocation.room_id, func.count(StudentAllocation.id))
+        .group_by(StudentAllocation.room_id)
+    ).all()
+    room_occupancy: Dict[int, int] = {row[0]: row[1] for row in occupancy_rows}
+    total_rooms_utilized = len(room_occupancy)
+
     return {
-        "total_students_allocated": len(total_allocations),
-        "total_active_exams": len(exams),
-        "total_rooms_utilized": len(unique_rooms),
-        "total_rooms_available": len(rooms),
-        "branch_mixing_compliance_percent": 100.0 if len(total_allocations) > 0 else 0.0,
+        "total_students_allocated": total_students_allocated,
+        "total_active_exams": total_active_exams,
+        "total_rooms_utilized": total_rooms_utilized,
+        "total_rooms_available": total_rooms_available,
+        "branch_mixing_compliance_percent": 100.0 if total_students_allocated > 0 else 0.0,
         "room_occupancy": room_occupancy
     }
 

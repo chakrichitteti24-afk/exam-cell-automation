@@ -44,11 +44,11 @@ export default function InvigilatorLayout({
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 w-full sm:w-auto">
                 <Link
                   href="/invigilator/dashboard"
                   className={cn(
-                    "px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5",
+                    "px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shrink-0 touch-target sm:touch-auto",
                     pathname === "/invigilator/dashboard"
                       ? "bg-blue-600 text-white shadow-xs"
                       : "text-slate-600 hover:bg-slate-100"
@@ -60,7 +60,7 @@ export default function InvigilatorLayout({
                 <Link
                   href="/invigilator/rooms"
                   className={cn(
-                    "px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5",
+                    "px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shrink-0 touch-target sm:touch-auto",
                     pathname === "/invigilator/rooms"
                       ? "bg-blue-600 text-white shadow-xs"
                       : "text-slate-600 hover:bg-slate-100"
@@ -72,7 +72,7 @@ export default function InvigilatorLayout({
                 <Link
                   href="/invigilator/exams"
                   className={cn(
-                    "px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5",
+                    "px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shrink-0 touch-target sm:touch-auto",
                     pathname === "/invigilator/exams"
                       ? "bg-blue-600 text-white shadow-xs"
                       : "text-slate-600 hover:bg-slate-100"

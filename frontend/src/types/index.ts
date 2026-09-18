@@ -50,7 +50,7 @@ export interface Room {
   id: string;
   roomNumber: string; // e.g. "101", "102"
   block: string;      // e.g. "A", "B"
-  floor: number;      // 1, 2
+  floor: number | string; // 1, "1st Floor"
   benchCount: number; // default 24
   seatsPerBench: number; // default 2
   capacity: number;   // benchCount * seatsPerBench
@@ -100,6 +100,7 @@ export interface StudentAllocation {
   isPresent?: boolean;
   subjectCode?: string;
   subjectName?: string;
+  semester?: number;
 }
 
 export interface InvigilatorAllocation {

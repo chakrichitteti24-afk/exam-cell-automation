@@ -1,16 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import {
-  FileSpreadsheet,
-  Printer,
-  Download,
-  DoorOpen,
-  Users,
-  UserCheck,
-  Calendar,
-  CheckCircle2,
-} from "lucide-react";
+import { Printer } from "lucide-react";
 import {
   api,
   ApiDoorNoticeReport,
@@ -27,7 +18,6 @@ export default function RootReportsPage() {
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
   const [doorNotice, setDoorNotice] = useState<ApiDoorNoticeReport | null>(null);
   const [invigilators, setInvigilators] = useState<ApiInvigilator[]>([]);
-  const [loading, setLoading] = useState(true);
 
   // Load initial rooms and exams
   useEffect(() => {
@@ -46,8 +36,6 @@ export default function RootReportsPage() {
         if (exList.length > 0) setSelectedExamId(exList[0].id);
       } catch (err) {
         console.error("Failed to load report parameters:", err);
-      } finally {
-        setLoading(false);
       }
     }
     loadMeta();
@@ -90,10 +78,10 @@ export default function RootReportsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
           <button
             onClick={handlePrint}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold shadow-sm transition"
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold shadow-sm transition touch-target w-full sm:w-auto"
           >
             <Printer className="h-3.5 w-3.5" />
             Print Document
@@ -102,15 +90,15 @@ export default function RootReportsPage() {
       </div>
 
       {/* Selectors Bar */}
-      <div className="flex flex-wrap items-center gap-4 bg-white/60 backdrop-blur-xl border-white/60 p-4 rounded-2xl border border-slate-200 shadow-xs print:hidden">
-        <div>
+      <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-4 bg-white/60 backdrop-blur-xl border-white/60 p-4 rounded-2xl border border-slate-200 shadow-xs print:hidden">
+        <div className="w-full sm:w-auto">
           <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">
             Select Examination
           </label>
           <select
             value={selectedExamId || ""}
             onChange={(e) => setSelectedExamId(Number(e.target.value))}
-            className="p-2 rounded-xl border border-slate-300 bg-slate-50 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="w-full sm:w-auto p-2.5 rounded-xl border border-slate-300 bg-slate-50 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-600"
           >
             {exams.map((ex) => (
               <option key={ex.id} value={ex.id}>
@@ -121,14 +109,14 @@ export default function RootReportsPage() {
         </div>
 
         {activeReport !== "INVIGILATOR" && (
-          <div>
+          <div className="w-full sm:w-auto">
             <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">
               Select Room / Hall
             </label>
             <select
               value={selectedRoomId || ""}
               onChange={(e) => setSelectedRoomId(Number(e.target.value))}
-              className="p-2 rounded-xl border border-slate-300 bg-slate-50 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="w-full sm:w-auto p-2.5 rounded-xl border border-slate-300 bg-slate-50 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-600"
             >
               {rooms.map((rm) => (
                 <option key={rm.id} value={rm.id}>
@@ -141,10 +129,10 @@ export default function RootReportsPage() {
       </div>
 
       {/* Report Selection Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto print:hidden">
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto no-scrollbar print:hidden">
         <button
           onClick={() => setActiveReport("ROOM")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap touch-target ${
             activeReport === "ROOM"
               ? "bg-blue-700 text-white shadow-xs"
               : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 hover:text-slate-900 border border-slate-300 hover:bg-slate-50"
@@ -154,7 +142,7 @@ export default function RootReportsPage() {
         </button>
         <button
           onClick={() => setActiveReport("INVIGILATOR")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap touch-target ${
             activeReport === "INVIGILATOR"
               ? "bg-blue-700 text-white shadow-xs"
               : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 hover:text-slate-900 border border-slate-300 hover:bg-slate-50"
@@ -164,7 +152,7 @@ export default function RootReportsPage() {
         </button>
         <button
           onClick={() => setActiveReport("DESK_SLIPS")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap touch-target ${
             activeReport === "DESK_SLIPS"
               ? "bg-blue-700 text-white shadow-xs"
               : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 hover:text-slate-900 border border-slate-300 hover:bg-slate-50"
@@ -175,7 +163,7 @@ export default function RootReportsPage() {
       </div>
 
       {/* Printable Sheet Canvas */}
-      <div className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-8 shadow-xs print:border-none print:shadow-none print:p-0">
+      <div className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-4 sm:p-8 shadow-xs print:border-none print:shadow-none print:p-0">
         {activeReport === "ROOM" && (
           <div className="space-y-6">
             {/* Academic Header for Door Notice */}
@@ -199,7 +187,7 @@ export default function RootReportsPage() {
                     : "Mid Examination Seating Notice (Dual-Seater Policy • 2 Students / Bench)";
                 })()}
               </h3>
-              <div className="flex justify-center gap-6 text-xs text-slate-600 pt-2 font-mono">
+              <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-xs text-slate-600 pt-2 font-mono">
                 <span><strong>Subject:</strong> {doorNotice?.subject_code} - {doorNotice?.subject_name}</span>
                 <span><strong>Date:</strong> {doorNotice?.exam_date}</span>
                 <span><strong>Session:</strong> {doorNotice?.time_slot}</span>
@@ -209,7 +197,7 @@ export default function RootReportsPage() {
 
             {/* Bench Allocation Table */}
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full min-w-[600px] text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b-2 border-slate-200 bg-slate-100 font-bold text-slate-900">
                     <th className="py-2.5 px-3 border border-slate-200">Bench No</th>
@@ -256,7 +244,7 @@ export default function RootReportsPage() {
             </div>
 
             {/* Signature Block */}
-            <div className="pt-8 flex justify-between items-end text-xs text-slate-700">
+            <div className="pt-8 flex flex-col sm:flex-row justify-between items-center sm:items-end gap-6 text-xs text-slate-700">
               <div className="text-center">
                 <div className="h-10"></div>
                 <div className="font-bold border-t border-slate-400 pt-1">Invigilator Signature</div>
@@ -287,30 +275,32 @@ export default function RootReportsPage() {
               <p className="text-xs text-slate-500 font-mono">Autonomous End Semester Examinations</p>
             </div>
 
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-100 font-bold border-b border-slate-200">
-                  <th className="p-3">Faculty Name</th>
-                  <th className="p-3">Employee ID</th>
-                  <th className="p-3">Department</th>
-                  <th className="p-3">Assigned Duty</th>
-                  <th className="p-3">Faculty Signature</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {invigilators.map((inv) => (
-                  <tr key={inv.id}>
-                    <td className="p-3 font-bold text-slate-900">{inv.name}</td>
-                    <td className="p-3 font-mono">{inv.faculty_id}</td>
-                    <td className="p-3">{inv.department_code || "---"}</td>
-                    <td className="p-3 font-bold text-blue-600">
-                      {inv.assigned_room ? inv.assigned_room : "---"}
-                    </td>
-                    <td className="p-3 text-slate-300">___________</td>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[550px] text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-100 font-bold border-b border-slate-200">
+                    <th className="p-3">Faculty Name</th>
+                    <th className="p-3">Employee ID</th>
+                    <th className="p-3">Department</th>
+                    <th className="p-3">Assigned Duty</th>
+                    <th className="p-3">Faculty Signature</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {invigilators.map((inv) => (
+                    <tr key={inv.id}>
+                      <td className="p-3 font-bold text-slate-900">{inv.name}</td>
+                      <td className="p-3 font-mono">{inv.faculty_id}</td>
+                      <td className="p-3">{inv.department_code || "---"}</td>
+                      <td className="p-3 font-bold text-blue-600">
+                        {inv.assigned_room ? inv.assigned_room : "---"}
+                      </td>
+                      <td className="p-3 text-slate-300">___________</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -322,9 +312,9 @@ export default function RootReportsPage() {
               </h3>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
               {doorNotice && doorNotice.students.length > 0 ? (
-                doorNotice.students.slice(0, 16).map((st, idx) => (
+                doorNotice.students.map((st, idx) => (
                   <div
                     key={idx}
                     className="p-3 rounded-xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 hover:border-blue-300 shadow-2xs space-y-1 text-center"
@@ -346,7 +336,7 @@ export default function RootReportsPage() {
                   </div>
                 ))
               ) : (
-                <div className="col-span-4 p-8 text-center text-slate-400 text-xs">
+                <div className="col-span-full p-8 text-center text-slate-400 text-xs">
                   No desk slips to display.
                 </div>
               )}

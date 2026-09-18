@@ -51,7 +51,7 @@ export interface ApiRoom {
   id: number;
   room_number: string;
   block: string;
-  floor: number;
+  floor: number | string;
   total_benches: number;
   seats_per_bench: number;
   capacity: number;
@@ -177,6 +177,7 @@ export interface ApiRoomSeatingMatrix {
   benches: ApiBenchSeating[];
   department_breakdown: Record<string, number>;
   mixing_compliance_percent: number;
+  arrangement_direction?: string;
 }
 
 export interface ApiStudentDeskSlip {
@@ -311,7 +312,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
       tokenStorage.clear();
       localStorage.removeItem("gkce_exam_cell_auth_session");
       if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
+        window.location.replace("/login");
       }
     }
 
@@ -390,13 +391,18 @@ export const api = {
     create: (data: {
       room_number: string;
       block: string;
-      floor?: number;
+      floor?: number | string;
       total_benches?: number;
       seats_per_bench?: number;
+      status?: string;
     }): Promise<ApiRoom> =>
       request<ApiRoom>("/rooms/", {
         method: "POST",
         body: JSON.stringify(data),
+      }),
+    delete: (roomId: number): Promise<{ message: string }> =>
+      request<{ message: string }>(`/rooms/${roomId}`, {
+        method: "DELETE",
       }),
   },
 
@@ -416,11 +422,24 @@ export const api = {
         body: JSON.stringify(data),
       }),
     assign: (data: {
+      invigilator_id?: number;
+      room_id?: number | null;
       exam_id?: number;
-      assignments?: { invigilator_id: number; room_id: number }[];
       auto_distribute?: boolean;
-    }): Promise<{ message: string; assignments: any[] }> =>
-      request<{ message: string; assignments: any[] }>("/invigilators/assign", {
+      selected_invigilator_ids?: number[];
+      selected_room_ids?: number[];
+    }): Promise<{
+      message: string;
+      status?: string;
+      invigilator_id?: number | null;
+      invigilator_name?: string | null;
+      room_id?: number | null;
+      room_number?: string | null;
+      assignments?: unknown[];
+      shortage_count?: number;
+      unassigned_rooms?: string[];
+    }> =>
+      request("/invigilators/assign", {
         method: "POST",
         body: JSON.stringify(data),
       }),
@@ -455,6 +474,7 @@ export const api = {
       exam_id?: number;
       exam_ids?: number[];
       room_ids?: number[];
+      department_codes?: string[];
       exam_type?: "MID" | "SEM";
       exam_subdivision?: "MID_1" | "MID_2" | "REGULAR" | "SUPPLEMENTARY";
       strategy?: string;
@@ -465,6 +485,8 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data || {}),
       }),
+    delete: (examId: number): Promise<{ message: string }> =>
+      request<{ message: string }>(`/exams/${examId}`, { method: "DELETE" }),
   },
 
   allocation: {
@@ -472,6 +494,7 @@ export const api = {
       exam_id?: number;
       exam_ids?: number[];
       room_ids?: number[];
+      department_codes?: string[];
       exam_type?: "MID" | "SEM";
       exam_subdivision?: "MID_1" | "MID_2" | "REGULAR" | "SUPPLEMENTARY";
       strategy?: string;
@@ -515,6 +538,18 @@ export const api = {
     getRoomSummary: (examId: number, roomId: number): Promise<unknown> =>
       request(`/attendance/exam/${examId}/room/${roomId}`),
   },
+
+  system: {
+    getStatus: (): Promise<{
+      database_type: string;
+      is_neon: boolean;
+      is_connected: boolean;
+      latency_ms: number;
+      records_summary: Record<string, number>;
+    }> => request("/system/status"),
+    clearData: (): Promise<{ success: boolean; message: string }> =>
+      request("/system/clear-data", { method: "POST" }),
+  },
 };
 
 export function mapApiMatrixToRoomMatrix(apiM: ApiRoomSeatingMatrix, examId: number): RoomSeatingMatrix {
@@ -529,6 +564,7 @@ export function mapApiMatrixToRoomMatrix(apiM: ApiRoomSeatingMatrix, examId: num
     examType: apiM.exam_type || "MID",
     examSubdivision: apiM.exam_subdivision || (isSem ? "REGULAR" : "MID_1"),
     seatsPerBench: apiM.seats_per_bench || (isSem ? 1 : 2),
+    arrangementDirection: (apiM.arrangement_direction as "COLUMN_WISE" | "ROW_WISE" | "SNAKE_COLUMN" | "SNAKE_ROW") || "COLUMN_WISE",
     benches: apiM.benches.map((b) => {
       const s1 = b.seat1
         ? {
@@ -537,7 +573,7 @@ export function mapApiMatrixToRoomMatrix(apiM: ApiRoomSeatingMatrix, examId: num
             studentId: String(b.seat1.student_id),
             studentRoll: b.seat1.roll_number,
             studentName: b.seat1.name,
-            departmentCode: (b.seat1.department_code || "N/A") as any,
+            departmentCode: (b.seat1.department_code || "CSE") as "CSE" | "ECE" | "EEE" | "MECH" | "CIVIL",
             roomId: String(apiM.room_id),
             roomNumber: apiM.room_number,
             block: apiM.block,
@@ -556,7 +592,7 @@ export function mapApiMatrixToRoomMatrix(apiM: ApiRoomSeatingMatrix, examId: num
             studentId: String(b.seat2.student_id),
             studentRoll: b.seat2.roll_number,
             studentName: b.seat2.name,
-            departmentCode: (b.seat2.department_code || "N/A") as any,
+            departmentCode: (b.seat2.department_code || "CSE") as "CSE" | "ECE" | "EEE" | "MECH" | "CIVIL",
             roomId: String(apiM.room_id),
             roomNumber: apiM.room_number,
             block: apiM.block,

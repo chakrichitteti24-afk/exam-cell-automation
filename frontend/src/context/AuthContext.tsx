@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User, UserRole } from "@/types";
@@ -36,27 +36,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (storedToken && storedUser) {
         try {
-          // Verify JWT with backend
-          const me = await api.auth.getMe();
+          // Optimistically hydrate state from localStorage immediately
           const parsed = JSON.parse(storedUser) as User;
-          setUser({
-            ...parsed,
+          setUser(parsed);
+          setIsLoading(false);
+
+          // Verify JWT with backend in background
+          const me = await api.auth.getMe();
+          setUser((prev) => ({
+            ...(prev || parsed),
             id: String(me.id),
             name: me.full_name,
             email: me.email,
             role: me.role,
-          });
+          }));
         } catch {
           // Token invalid or expired
           console.warn("Session token expired or unreachable, clearing auth.");
           tokenStorage.clear();
           localStorage.removeItem(STORAGE_KEY);
           setUser(null);
+          setIsLoading(false);
         }
       } else {
         setUser(null);
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
 
     restoreSession();
@@ -110,11 +115,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
-  const switchRole = (_newRole: UserRole) => {
+  const switchRole = (_newRole?: UserRole) => {
     // In authentic authentication, role switching requires logging in as an account with that role
+    void _newRole;
     logout();
     if (typeof window !== "undefined") {
-      window.location.href = "/login";
+      window.location.replace("/login");
     }
   };
 

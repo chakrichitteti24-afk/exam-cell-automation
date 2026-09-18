@@ -21,16 +21,22 @@ def list_exams(
     List all scheduled examinations with enrollment and allocation counts.
     """
     exams = db.execute(select(Exam).order_by(Exam.exam_date)).scalars().all()
+    
+    from sqlalchemy import func
+    # Pre-fetch enrolled counts
+    enrolled_data = db.execute(
+        select(ExamStudent.exam_id, func.count(ExamStudent.id)).group_by(ExamStudent.exam_id)
+    ).all()
+    enrolled_map = {row[0]: row[1] for row in enrolled_data}
+    
+    # Pre-fetch allocation counts
+    alloc_data = db.execute(
+        select(StudentAllocation.exam_id, func.count(StudentAllocation.id)).group_by(StudentAllocation.exam_id)
+    ).all()
+    alloc_map = {row[0]: row[1] for row in alloc_data}
+
     results = []
     for exam in exams:
-        enrolled_count = db.execute(
-            select(ExamStudent).where(ExamStudent.exam_id == exam.id)
-        ).scalars().all()
-        
-        alloc_count = db.execute(
-            select(StudentAllocation).where(StudentAllocation.exam_id == exam.id)
-        ).scalars().all()
-
         results.append(
             ExamResponse(
                 id=exam.id,
@@ -45,8 +51,8 @@ def list_exams(
                 academic_year=exam.academic_year,
                 semester=exam.semester,
                 status=exam.status,
-                enrolled_students_count=len(enrolled_count),
-                allocated_students_count=len(alloc_count)
+                enrolled_students_count=enrolled_map.get(exam.id, 0),
+                allocated_students_count=alloc_map.get(exam.id, 0)
             )
         )
     return results
@@ -138,7 +144,7 @@ def launch_exam_session(
         if sched:
             first_date = sched[0].exam_date
             first_session = sched[0].session
-            target_exam_ids = [e.id for e in sched if e.exam_date == first_date and e.session == first_session]
+            target_exam_ids = [e.id for e in sched if e.exam_date == first_date and e.session == first_session and e.status == "SCHEDULED"]
         else:
             target_exam_ids = []
 
@@ -151,18 +157,34 @@ def launch_exam_session(
         exam_id=payload.exam_id,
         exam_ids=target_exam_ids,
         room_ids=payload.room_ids,
+        department_codes=payload.department_codes,
         exam_type=payload.exam_type,
         exam_subdivision=payload.exam_subdivision,
         strategy=payload.strategy or "MULTI_BRANCH_MIXING",
-        arrangement_direction=payload.arrangement_direction or "COLUMN_WISE"
+        arrangement_direction=payload.arrangement_direction or "COLUMN_WISE",
+        auto_assign_invigilators=payload.auto_assign_invigilators if payload.auto_assign_invigilators is not None else True
     )
+
+    from sqlalchemy import func
+    # Pre-fetch enrolled and allocation counts in SQL
+    enrolled_data = db.execute(
+        select(ExamStudent.exam_id, func.count(ExamStudent.id))
+        .where(ExamStudent.exam_id.in_(target_exam_ids))
+        .group_by(ExamStudent.exam_id)
+    ).all()
+    enrolled_map = {row[0]: row[1] for row in enrolled_data}
+
+    alloc_data = db.execute(
+        select(StudentAllocation.exam_id, func.count(StudentAllocation.id))
+        .where(StudentAllocation.exam_id.in_(target_exam_ids))
+        .group_by(StudentAllocation.exam_id)
+    ).all()
+    alloc_map = {row[0]: row[1] for row in alloc_data}
 
     # Fetch updated exams
     exams = db.execute(select(Exam).where(Exam.id.in_(target_exam_ids))).scalars().all()
     launched_exams_res = []
     for ex in exams:
-        enrolled = db.execute(select(ExamStudent).where(ExamStudent.exam_id == ex.id)).scalars().all()
-        alloc = db.execute(select(StudentAllocation).where(StudentAllocation.exam_id == ex.id)).scalars().all()
         launched_exams_res.append(
             ExamResponse(
                 id=ex.id,
@@ -177,8 +199,8 @@ def launch_exam_session(
                 academic_year=ex.academic_year,
                 semester=ex.semester,
                 status=ex.status,
-                enrolled_students_count=len(enrolled),
-                allocated_students_count=len(alloc)
+                enrolled_students_count=enrolled_map.get(ex.id, 0),
+                allocated_students_count=alloc_map.get(ex.id, 0)
             )
         )
 
@@ -187,6 +209,14 @@ def launch_exam_session(
         select(InvigilatorAllocation).where(InvigilatorAllocation.exam_id.in_(target_exam_ids))
     ).scalars().all()
 
+    # Bulk fetch roster rooms, invigilators, and departments
+    roster_room_ids = list({ia.room_id for ia in inv_allocs})
+    roster_inv_ids = list({ia.invigilator_id for ia in inv_allocs})
+    rooms_map = {r.id: r for r in db.execute(select(Room).where(Room.id.in_(roster_room_ids))).scalars().all()} if roster_room_ids else {}
+    invs_map = {i.id: i for i in db.execute(select(Invigilator).where(Invigilator.id.in_(roster_inv_ids))).scalars().all()} if roster_inv_ids else {}
+    dept_ids = list({inv.department_id for inv in invs_map.values()})
+    depts_map = {d.id: d.code for d in db.execute(select(Department).where(Department.id.in_(dept_ids))).scalars().all()} if dept_ids else {}
+
     duty_roster = []
     seen_roster = set()
     for ia in inv_allocs:
@@ -194,9 +224,9 @@ def launch_exam_session(
         if key in seen_roster:
             continue
         seen_roster.add(key)
-        rm = db.execute(select(Room).where(Room.id == ia.room_id)).scalar_one_or_none()
-        inv = db.execute(select(Invigilator).where(Invigilator.id == ia.invigilator_id)).scalar_one_or_none()
-        dept = db.execute(select(Department).where(Department.id == inv.department_id)).scalar_one_or_none() if inv else None
+        rm = rooms_map.get(ia.room_id)
+        inv = invs_map.get(ia.invigilator_id)
+        dept_code = depts_map.get(inv.department_id, "N/A") if inv else "N/A"
         if rm and inv:
             cand_count = summary.details_by_room.get(f"Room {rm.room_number}", 0)
             duty_roster.append(
@@ -207,7 +237,7 @@ def launch_exam_session(
                     invigilator_id=inv.id,
                     invigilator_name=inv.name,
                     faculty_id=inv.faculty_id,
-                    department_code=dept.code if dept else "N/A",
+                    department_code=dept_code,
                     total_candidates=cand_count,
                     is_alternative_fallback=False
                 )
@@ -273,5 +303,41 @@ def launch_single_exam(
     """
     req = payload or ExamLaunchRequest(exam_id=exam_id)
     req.exam_id = exam_id
-    return launch_exam_session(req, db, current_user)
+    return launch_exam_session(payload=req, db=db, current_user=current_user)
+
+@router.delete("/{exam_id}", status_code=status.HTTP_200_OK)
+def delete_exam(
+    exam_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["ROOT"]))
+):
+    """
+    Permanently delete an examination, its student enrollments, allocations, and attendance records.
+    Restricted to ROOT administrators.
+    """
+    from sqlalchemy import delete as sql_delete
+    from app.models.seating import StudentAllocation, InvigilatorAllocation, AttendanceRecord
+
+    exam = db.execute(select(Exam).where(Exam.id == exam_id)).scalar_one_or_none()
+    if not exam:
+        raise HTTPException(status_code=404, detail=f"Examination with ID {exam_id} not found.")
+
+    subj_code = exam.subject_code
+
+    # 1. Clean up attendance records for this exam
+    db.execute(sql_delete(AttendanceRecord).where(AttendanceRecord.exam_id == exam.id))
+
+    # 2. Clean up allocations
+    db.execute(sql_delete(StudentAllocation).where(StudentAllocation.exam_id == exam.id))
+    db.execute(sql_delete(InvigilatorAllocation).where(InvigilatorAllocation.exam_id == exam.id))
+
+    # 3. Clean up exam student enrollments
+    db.execute(sql_delete(ExamStudent).where(ExamStudent.exam_id == exam.id))
+
+    # 4. Delete exam
+    db.delete(exam)
+    db.commit()
+
+    return {"message": f"Examination '{subj_code}' (ID: {exam_id}) and all associated records permanently deleted."}
+
 

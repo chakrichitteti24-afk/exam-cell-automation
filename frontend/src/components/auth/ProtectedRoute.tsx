@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { UserRole } from "@/types";
-import { ShieldAlert, ArrowRight, LogOut, Lock } from "lucide-react";
+import { ArrowRight, LogOut, Lock } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;

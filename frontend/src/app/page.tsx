@@ -7,9 +7,19 @@ import { GraduationCap } from "lucide-react";
 
 export default function HomePage() {
   const router = useRouter();
-  const { user, role, isAuthenticated, isLoading } = useAuth();
+  const { role, isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
+    router.prefetch("/login");
+    router.prefetch("/root/dashboard");
+
+    // Fast client-side check: if definitely no token, redirect to login immediately
+    const token = typeof window !== "undefined" ? localStorage.getItem("gkce_exam_cell_auth_token") : null;
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+
     if (!isLoading) {
       if (isAuthenticated && role) {
         if (role === "ROOT") router.replace("/root/dashboard");

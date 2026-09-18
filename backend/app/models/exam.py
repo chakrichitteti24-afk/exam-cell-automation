@@ -28,8 +28,8 @@ class ExamStudent(Base):
     __tablename__ = "exam_students"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    exam_id: Mapped[int] = mapped_column(ForeignKey("exams.id"), nullable=False)
-    student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), nullable=False)
+    exam_id: Mapped[int] = mapped_column(ForeignKey("exams.id"), nullable=False, index=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), nullable=False, index=True)
 
     __table_args__ = (
         UniqueConstraint("exam_id", "student_id", name="uq_exam_student"),

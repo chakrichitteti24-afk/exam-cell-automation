@@ -35,7 +35,22 @@ class DutyAssignmentResponse(BaseModel):
     absent_count: int
 
 class DutyAssignRequest(BaseModel):
-    invigilator_id: int
-    room_id: int
+    invigilator_id: Optional[int] = None
+    room_id: Optional[int] = None
     exam_id: Optional[int] = None
+    auto_distribute: Optional[bool] = False
+    selected_invigilator_ids: Optional[list[int]] = None
+    selected_room_ids: Optional[list[int]] = None
+
+class DutyAssignResult(BaseModel):
+    message: str
+    invigilator_id: Optional[int] = None
+    invigilator_name: Optional[str] = None
+    room_id: Optional[int] = None
+    room_number: Optional[str] = None
+    status: Optional[str] = "SUCCESS"
+    assignments: Optional[list] = []
+    shortage_count: Optional[int] = 0
+    unassigned_rooms: Optional[list[str]] = []
+
 

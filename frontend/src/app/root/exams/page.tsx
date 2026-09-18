@@ -7,11 +7,9 @@ import {
   Plus,
   Clock,
   Users,
-  Grid3X3,
   CheckCircle2,
   AlertCircle,
   X,
-  Sparkles,
   Loader2,
   Rocket,
   ArrowRight,
@@ -53,6 +51,7 @@ export default function RootExamsPage() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadExams();
   }, []);
 

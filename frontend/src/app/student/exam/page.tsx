@@ -3,9 +3,6 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
-  Calendar,
-  Clock,
-  MapPin,
   CheckCircle2,
   ArrowRight,
   Hourglass,

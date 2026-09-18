@@ -1,4 +1,4 @@
-import { api } from "./api";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
 
 // Utility to convert Base64 URL to Uint8Array
 function urlBase64ToUint8Array(base64String: string) {
@@ -35,7 +35,7 @@ export async function subscribeToPush(registration: ServiceWorkerRegistration) {
 
   try {
     // 1. Fetch public key from backend
-    const res = await fetch('http://localhost:8000/api/v1/notifications/vapid-public-key');
+    const res = await fetch(`${API_BASE}/notifications/vapid-public-key`);
     if (!res.ok) throw new Error('Failed to fetch VAPID key');
     const { key } = await res.json();
 
@@ -54,7 +54,7 @@ export async function subscribeToPush(registration: ServiceWorkerRegistration) {
     const token = localStorage.getItem("gkce_exam_cell_auth_token");
     if (!token) return false; // not authenticated
 
-    await fetch('http://localhost:8000/api/v1/notifications/subscribe', {
+    await fetch(`${API_BASE}/notifications/subscribe`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -5,7 +5,6 @@ import {
   Grid3X3,
   Sliders,
   CheckCircle2,
-  AlertTriangle,
   DoorOpen,
   Users,
   RefreshCw,
@@ -16,13 +15,20 @@ import {
   ShieldCheck,
   RotateCcw,
   Rocket,
+  Shield,
+  X,
+  CheckSquare,
+  Square,
+  UserPlus,
+  PauseCircle,
 } from "lucide-react";
 import {
   api,
   ApiExam,
   ApiRoom,
-  ApiRoomSeatingMatrix,
   ApiAllocationSummary,
+  ApiInvigilator,
+  ApiDepartment,
   mapApiMatrixToRoomMatrix,
 } from "@/lib/api";
 import { RoomSeatingMatrix } from "@/types";
@@ -32,6 +38,24 @@ import Link from "next/link";
 export default function RootAllocationPage() {
   const [exams, setExams] = useState<ApiExam[]>([]);
   const [rooms, setRooms] = useState<ApiRoom[]>([]);
+  const [invigilators, setInvigilators] = useState<ApiInvigilator[]>([]);
+  const [departments, setDepartments] = useState<ApiDepartment[]>([]);
+  const [selectedRoomIds, setSelectedRoomIds] = useState<number[]>([]);
+  const availableBranches = departments.length > 0 ? departments.map((d) => d.code) : ["CSE", "ECE", "EEE", "MECH", "CIVIL", "MBA"];
+  const [selectedBranches, setSelectedBranches] = useState<string[]>(["CSE", "ECE", "EEE", "MECH", "CIVIL", "MBA"]);
+  const [isInvigModalOpen, setIsInvigModalOpen] = useState(false);
+  const [selectedInvigId, setSelectedInvigId] = useState<number>(0);
+  const [isAssigningInvig, setIsAssigningInvig] = useState(false);
+  const [showQuickRegister, setShowQuickRegister] = useState(false);
+  const [isRegisteringQuick, setIsRegisteringQuick] = useState(false);
+  const [quickInv, setQuickInv] = useState({
+    name: "",
+    facultyId: "",
+    email: "",
+    departmentCode: "CSE",
+    designation: "Assistant Professor",
+    phone: "",
+  });
   const [targetMode, setTargetMode] = useState<"MULTI_SESSION" | "SINGLE_EXAM">("MULTI_SESSION");
   const [examType, setExamType] = useState<"MID" | "SEM">("MID");
   const [examSubdivision, setExamSubdivision] = useState<"MID_1" | "MID_2" | "REGULAR" | "SUPPLEMENTARY">("MID_1");
@@ -46,25 +70,29 @@ export default function RootAllocationPage() {
   const [summary, setSummary] = useState<ApiAllocationSummary | null>(null);
   const [qpBreakdown, setQpBreakdown] = useState<Record<string, number> | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
 
-  // Departmental exams for multi-exam concurrent session (CSE, ECE, EEE, MECH, CIVIL)
-  const departmentalExams = exams.filter((e) =>
-    ["CS301", "EC301", "EE301", "ME301", "CE301", "CS501", "EC501", "CE501", "ME501"].includes(e.subject_code)
-  );
+  // Exams available for multi-exam concurrent session
+  const departmentalExams = exams.filter((e) => e.status !== "COMPLETED");
 
   // Initial load
   useEffect(() => {
     async function initData() {
-      setLoading(true);
       try {
-        const [exList, rmList] = await Promise.all([
+        const [exList, rmList, invList, deptList] = await Promise.all([
           api.exams.list(),
           api.rooms.list(),
+          api.invigilators.list().catch(() => [] as ApiInvigilator[]),
+          api.departments.list().catch(() => [] as ApiDepartment[]),
         ]);
         setExams(exList);
         setRooms(rmList);
+        setSelectedRoomIds(rmList.map((r) => r.id));
+        setInvigilators(invList);
+        setDepartments(deptList);
+        if (deptList.length > 0) {
+          setSelectedBranches(deptList.map((d) => d.code));
+        }
 
         if (exList.length > 0) {
           setSelectedExamId(exList[0].id);
@@ -72,7 +100,7 @@ export default function RootAllocationPage() {
             setExamType(exList[0].exam_type as "MID" | "SEM");
           }
           if (exList[0].exam_subdivision) {
-            setExamSubdivision(exList[0].exam_subdivision as any);
+            setExamSubdivision(exList[0].exam_subdivision as "MID_1" | "MID_2" | "REGULAR" | "SUPPLEMENTARY");
           }
         }
         if (rmList.length > 0) {
@@ -80,12 +108,138 @@ export default function RootAllocationPage() {
         }
       } catch (err) {
         console.error("Failed to load exams or rooms:", err);
-      } finally {
-        setLoading(false);
       }
     }
     initData();
   }, []);
+
+  const effectiveSelectedRooms = rooms.filter((r) => selectedRoomIds.length === 0 || selectedRoomIds.includes(r.id));
+  const activeRoom = effectiveSelectedRooms.find((r) => r.id === activeRoomId) || (effectiveSelectedRooms.length > 0 ? effectiveSelectedRooms[0] : null);
+  const activeRoomInvigilator = invigilators.find((inv) => {
+    if (!activeRoom) return false;
+    return inv.assigned_room?.includes(activeRoom.room_number);
+  });
+
+  const openInvigModal = () => {
+    setSelectedInvigId(activeRoomInvigilator?.id || 0);
+    setIsInvigModalOpen(true);
+  };
+
+  const toggleRoomSelection = (roomId: number) => {
+    if (selectedRoomIds.includes(roomId)) {
+      const nextSelected = selectedRoomIds.filter((id) => id !== roomId);
+      setSelectedRoomIds(nextSelected);
+      if (activeRoomId === roomId) {
+        setActiveRoomId(nextSelected.length > 0 ? nextSelected[0] : null);
+      }
+    } else {
+      const nextSelected = [...selectedRoomIds, roomId];
+      setSelectedRoomIds(nextSelected);
+      if (!activeRoomId) {
+        setActiveRoomId(roomId);
+      }
+    }
+  };
+
+  const toggleBranchSelection = (branchCode: string) => {
+    if (selectedBranches.includes(branchCode)) {
+      if (selectedBranches.length > 1) {
+        setSelectedBranches(selectedBranches.filter((b) => b !== branchCode));
+      } else {
+        alert("At least one department branch must be selected for seating allocation.");
+      }
+    } else {
+      setSelectedBranches([...selectedBranches, branchCode]);
+    }
+  };
+
+  const handleAssignRoomInvigilator = async () => {
+    if (!activeRoomId) return;
+    setIsAssigningInvig(true);
+    try {
+      if (selectedInvigId > 0) {
+        const res = await api.invigilators.assign({
+          invigilator_id: selectedInvigId,
+          room_id: activeRoomId,
+        });
+        alert(res.message || "Invigilator duty updated successfully.");
+      } else if (activeRoomInvigilator) {
+        const res = await api.invigilators.assign({
+          invigilator_id: activeRoomInvigilator.id,
+          room_id: 0,
+        });
+        alert(res.message || "Invigilator unassigned from room.");
+      }
+      const updatedInv = await api.invigilators.list();
+      setInvigilators(updatedInv);
+      setIsInvigModalOpen(false);
+    } catch (err: unknown) {
+      alert(`Assignment failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setIsAssigningInvig(false);
+    }
+  };
+
+  const handleHoldSupervisor = async () => {
+    if (!activeRoomInvigilator) return;
+    setIsAssigningInvig(true);
+    try {
+      const res = await api.invigilators.assign({
+        invigilator_id: activeRoomInvigilator.id,
+        room_id: 0,
+      });
+      const updatedInv = await api.invigilators.list();
+      setInvigilators(updatedInv);
+      setIsInvigModalOpen(false);
+      alert(res.message || `Supervisor ${activeRoomInvigilator.name} put on HOLD (Standby). Room ${activeRoom?.room_number} is now unassigned.`);
+    } catch (err: unknown) {
+      alert(`Failed to hold duty: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setIsAssigningInvig(false);
+    }
+  };
+
+  const handleQuickRegisterAndAssign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickInv.name || !quickInv.facultyId || !activeRoomId) return;
+    setIsRegisteringQuick(true);
+    try {
+      const dept = departments.find((d) => d.code === quickInv.departmentCode);
+      const deptId = dept ? dept.id : 1;
+
+      const created = await api.invigilators.create({
+        faculty_id: quickInv.facultyId.trim().toUpperCase(),
+        name: quickInv.name.trim(),
+        department_id: deptId,
+        designation: quickInv.designation,
+        email: quickInv.email.trim() || `${quickInv.facultyId.trim().toLowerCase()}@gkce.edu.in`,
+        phone: quickInv.phone.trim() || "+91 98765 43210",
+      });
+
+      await api.invigilators.assign({
+        invigilator_id: created.id,
+        room_id: activeRoomId,
+      });
+
+      const updatedInv = await api.invigilators.list();
+      setInvigilators(updatedInv);
+      setShowQuickRegister(false);
+      setQuickInv({
+        name: "",
+        facultyId: "",
+        email: "",
+        departmentCode: "CSE",
+        designation: "Assistant Professor",
+        phone: "",
+      });
+      setIsInvigModalOpen(false);
+      alert(`Successfully registered ${created.name} and assigned to Room ${activeRoom?.room_number}!`);
+    } catch (err: unknown) {
+      alert(`Registration failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setIsRegisteringQuick(false);
+    }
+  };
 
   // Fetch seating matrix when activeRoomId or selectedExamId changes
   useEffect(() => {
@@ -125,15 +279,28 @@ export default function RootAllocationPage() {
 
     try {
       setGenerationStep(2);
-      const roomIdsToAllocate = rooms.map((r) => r.id);
+      const roomIdsToAllocate = selectedRoomIds.length > 0 ? selectedRoomIds : rooms.map((r) => r.id);
+      const branchCodesToAllocate = selectedBranches.length > 0 ? selectedBranches : undefined;
 
       let res;
       if (targetMode === "MULTI_SESSION" && departmentalExams.length > 0) {
         // Concurrent allocation for CSE, ECE, EEE, MECH, CIVIL
-        const examIds = departmentalExams.map((e) => e.id);
+        let targetExams = departmentalExams;
+        if (branchCodesToAllocate) {
+          const filtered = departmentalExams.filter((e) =>
+            branchCodesToAllocate.some((code) => {
+              if (code === "CIVIL") return e.subject_code.startsWith("CE");
+              if (code === "MECH") return e.subject_code.startsWith("ME");
+              return e.subject_code.toUpperCase().startsWith(code.slice(0, 2).toUpperCase()) || e.subject_code.toUpperCase().includes(code.toUpperCase());
+            })
+          );
+          if (filtered.length > 0) targetExams = filtered;
+        }
+        const examIds = targetExams.map((e) => e.id);
         res = await api.allocation.generate({
           exam_ids: examIds,
           room_ids: roomIdsToAllocate,
+          department_codes: branchCodesToAllocate,
           strategy: strictBranchMixing ? "MULTI_BRANCH_MIXING" : "STANDARD",
           arrangement_direction: arrangementDirection,
           exam_type: examType,
@@ -145,6 +312,7 @@ export default function RootAllocationPage() {
         res = await api.allocation.generate({
           exam_id: selectedExamId,
           room_ids: roomIdsToAllocate,
+          department_codes: branchCodesToAllocate,
           strategy: strictBranchMixing ? "MULTI_BRANCH_MIXING" : "STANDARD",
           arrangement_direction: arrangementDirection,
           exam_type: examType,
@@ -158,10 +326,18 @@ export default function RootAllocationPage() {
         setQpBreakdown(res.question_paper_breakdown);
       }
 
-      // Reload matrix for current room
-      if (activeRoomId && selectedExamId) {
-        const updatedApiMatrix = await api.allocation.getRoomMatrix(activeRoomId, selectedExamId);
+      // Reload matrix for allocated room
+      const targetRoomId = roomIdsToAllocate.includes(activeRoomId || 0)
+        ? (activeRoomId as number)
+        : (roomIdsToAllocate.length > 0 ? roomIdsToAllocate[0] : null);
+      if (targetRoomId !== activeRoomId) {
+        setActiveRoomId(targetRoomId);
+      }
+      if (targetRoomId && selectedExamId) {
+        const updatedApiMatrix = await api.allocation.getRoomMatrix(targetRoomId, selectedExamId);
         setCurrentMatrix(mapApiMatrixToRoomMatrix(updatedApiMatrix, selectedExamId));
+      } else {
+        setCurrentMatrix(null);
       }
 
       // Reload summary
@@ -182,12 +358,26 @@ export default function RootAllocationPage() {
     setIsGenerating(true);
     setGenerationStep(1);
     try {
-      const roomIdsToAllocate = rooms.map((r) => r.id);
+      const roomIdsToAllocate = selectedRoomIds.length > 0 ? selectedRoomIds : rooms.map((r) => r.id);
+      const branchCodesToAllocate = selectedBranches.length > 0 ? selectedBranches : undefined;
+
       let res;
       if (targetMode === "MULTI_SESSION" && departmentalExams.length > 0) {
+        let targetExams = departmentalExams;
+        if (branchCodesToAllocate) {
+          const filtered = departmentalExams.filter((e) =>
+            branchCodesToAllocate.some((code) => {
+              if (code === "CIVIL") return e.subject_code.startsWith("CE");
+              if (code === "MECH") return e.subject_code.startsWith("ME");
+              return e.subject_code.toUpperCase().startsWith(code.slice(0, 2).toUpperCase()) || e.subject_code.toUpperCase().includes(code.toUpperCase());
+            })
+          );
+          if (filtered.length > 0) targetExams = filtered;
+        }
         res = await api.exams.launch({
-          exam_ids: departmentalExams.map((e) => e.id),
+          exam_ids: targetExams.map((e) => e.id),
           room_ids: roomIdsToAllocate,
+          department_codes: branchCodesToAllocate,
           strategy: strictBranchMixing ? "MULTI_BRANCH_MIXING" : "STANDARD",
           arrangement_direction: arrangementDirection,
           auto_assign_invigilators: true,
@@ -199,6 +389,7 @@ export default function RootAllocationPage() {
         res = await api.exams.launch({
           exam_id: selectedExamId,
           room_ids: roomIdsToAllocate,
+          department_codes: branchCodesToAllocate,
           strategy: strictBranchMixing ? "MULTI_BRANCH_MIXING" : "STANDARD",
           arrangement_direction: arrangementDirection,
           auto_assign_invigilators: true,
@@ -207,9 +398,17 @@ export default function RootAllocationPage() {
         });
       }
 
-      if (activeRoomId && selectedExamId) {
-        const updatedApiMatrix = await api.allocation.getRoomMatrix(activeRoomId, selectedExamId);
+      const targetRoomId = roomIdsToAllocate.includes(activeRoomId || 0)
+        ? (activeRoomId as number)
+        : (roomIdsToAllocate.length > 0 ? roomIdsToAllocate[0] : null);
+      if (targetRoomId !== activeRoomId) {
+        setActiveRoomId(targetRoomId);
+      }
+      if (targetRoomId && selectedExamId) {
+        const updatedApiMatrix = await api.allocation.getRoomMatrix(targetRoomId, selectedExamId);
         setCurrentMatrix(mapApiMatrixToRoomMatrix(updatedApiMatrix, selectedExamId));
+      } else {
+        setCurrentMatrix(null);
       }
       const sum = await api.allocation.getSummary();
       setSummary(sum);
@@ -266,24 +465,24 @@ export default function RootAllocationPage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
           <button
             onClick={handleReset}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/60 backdrop-blur-xl border-white/60 hover:bg-rose-50 text-slate-700 hover:text-rose-600 hover:border-rose-300 text-xs font-semibold border border-slate-300 shadow-2xs transition"
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white/60 backdrop-blur-xl border-white/60 hover:bg-rose-50 text-slate-700 hover:text-rose-600 hover:border-rose-300 text-xs font-semibold border border-slate-300 shadow-2xs transition touch-target w-full sm:w-auto"
           >
             <RotateCcw className="h-3.5 w-3.5" />
             <span>Reset to NULL</span>
           </button>
           <Link
             href="/root/reports"
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/60 backdrop-blur-xl border-white/60 hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-300 shadow-2xs transition"
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white/60 backdrop-blur-xl border-white/60 hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-300 shadow-2xs transition touch-target w-full sm:w-auto"
           >
             <FileSpreadsheet className="h-3.5 w-3.5 text-slate-500" />
             <span>Door Notices</span>
           </Link>
           <button
             onClick={handleSave}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold shadow-sm transition"
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold shadow-sm transition touch-target w-full sm:w-auto"
           >
             {isSaved ? <Check className="h-3.5 w-3.5 text-emerald-300" /> : <Save className="h-3.5 w-3.5" />}
             {isSaved ? "Saved & Published" : "Publish Roster"}
@@ -507,6 +706,134 @@ export default function RootAllocationPage() {
               </p>
             </div>
 
+            {/* Target Examination Halls (Manual Room Selection) */}
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+                  <DoorOpen className="h-3.5 w-3.5 text-slate-700" />
+                  <span>Target Examination Halls</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allIds = rooms.map((r) => r.id);
+                      setSelectedRoomIds(allIds);
+                      if (allIds.length > 0 && (!activeRoomId || !allIds.includes(activeRoomId))) {
+                        setActiveRoomId(allIds[0]);
+                      }
+                    }}
+                    className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 hover:underline px-1"
+                  >
+                    All Halls
+                  </button>
+                  <span className="text-slate-300 text-[10px]">|</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedRoomIds([]);
+                      setActiveRoomId(null);
+                      setCurrentMatrix(null);
+                    }}
+                    className="text-[10px] font-semibold text-slate-500 hover:text-slate-700 hover:underline px-1"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-1.5">
+                {rooms.map((rm) => {
+                  const isChecked = selectedRoomIds.includes(rm.id);
+                  const isSem = examType === "SEM";
+                  const cap = isSem ? 24 : rm.capacity;
+                  return (
+                    <button
+                      key={rm.id}
+                      type="button"
+                      onClick={() => toggleRoomSelection(rm.id)}
+                      className={`flex items-center justify-between p-2 rounded-lg border text-left transition ${
+                        isChecked
+                          ? "bg-blue-50 border-blue-300 text-blue-900"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        {isChecked ? (
+                          <CheckSquare className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                        ) : (
+                          <Square className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        )}
+                        <span className="font-semibold text-[11px]">Room {rm.room_number}</span>
+                      </div>
+                      <span className="text-[10px] font-medium text-slate-500">{cap} seats</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-between text-[10.5px] text-slate-500 pt-0.5">
+                <span>{selectedRoomIds.length} of {rooms.length} halls selected</span>
+                <span>Capacity: {selectedRoomIds.reduce((acc, id) => {
+                  const rm = rooms.find((r) => r.id === id);
+                  return acc + (examType === "SEM" ? 24 : (rm?.capacity || 48));
+                }, 0)} seats</span>
+              </div>
+            </div>
+
+            {/* Academic Branches to Seat (Manual Branch Selection) */}
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+                  <Layers className="h-3.5 w-3.5 text-slate-700" />
+                  <span>Academic Branches to Seat</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBranches(["CSE", "ECE", "EEE", "MECH", "CIVIL"])}
+                    className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 hover:underline px-1"
+                  >
+                    All 5
+                  </button>
+                  <span className="text-slate-300 text-[10px]">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBranches(["CSE"])}
+                    className="text-[10px] font-semibold text-slate-500 hover:text-slate-700 hover:underline px-1"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {availableBranches.map((code) => {
+                  const isSelected = selectedBranches.includes(code);
+                  return (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => toggleBranchSelection(code)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition ${
+                        isSelected
+                          ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      {code}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p className="text-[10.5px] text-slate-500">
+                {selectedBranches.length === availableBranches.length
+                  ? `✓ Full multi-branch concurrent pairing active (${availableBranches.join(", ")}).`
+                  : `✓ Filtered pairing: Seating candidates from ${selectedBranches.join(", ")}.`}
+              </p>
+            </div>
+
             {/* Branch Mixing Rule Toggle */}
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
               <div className="flex items-center justify-between">
@@ -619,42 +946,56 @@ export default function RootAllocationPage() {
         <div className="lg:col-span-2 space-y-4">
           {/* KPI Metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-4 rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 shadow-2xs">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Total Allocated</span>
-              <p className="text-2xl font-bold text-slate-900 mt-1">
+            <div className="p-4 rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 shadow-2xs hover:border-slate-300 transition">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Total Allocated</span>
+              <p className="text-3xl font-black font-mono text-slate-900 mt-1">
                 {summary?.total_students_allocated ?? 0}
               </p>
-              <span className={`text-[10px] font-medium ${(summary?.total_students_allocated ?? 0) > 0 ? "text-emerald-700" : "text-amber-700"}`}>
+              <span className={`text-[10px] font-bold ${(summary?.total_students_allocated ?? 0) > 0 ? "text-emerald-700" : "text-amber-700"}`}>
                 {(summary?.total_students_allocated ?? 0) > 0 ? "All Registered Seated" : "Status: NULL"}
               </span>
             </div>
 
-            <div className="p-4 rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 shadow-2xs">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Branch Mixing</span>
-              <p className="text-2xl font-bold text-slate-900 mt-1">
+            <div className="p-4 rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 shadow-2xs hover:border-slate-300 transition">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Branch Mixing</span>
+              <p className="text-3xl font-black font-mono text-slate-900 mt-1">
                 {summary?.branch_mixing_compliance_percent ?? 0}%
               </p>
-              <span className="text-[10px] text-slate-500 font-medium">
+              <span className="text-[10px] text-blue-700 font-bold">
                 {(summary?.total_students_allocated ?? 0) > 0 ? "100% Collision-Free" : "Pending Run"}
               </span>
             </div>
 
-            <div className="p-4 rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 shadow-2xs">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Halls Utilized</span>
-              <p className="text-2xl font-bold text-slate-900 mt-1">
+            <div className="p-4 rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 shadow-2xs hover:border-slate-300 transition">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Halls Utilized</span>
+              <p className="text-3xl font-black font-mono text-slate-900 mt-1">
                 {summary?.total_rooms_utilized ?? 0} Halls
               </p>
-              <span className="text-[10px] text-slate-500 font-medium">
+              <span className="text-[10px] text-amber-700 font-bold">
                 {(summary?.total_rooms_utilized ?? 0) > 0 ? `${summary?.total_rooms_utilized} Active Halls` : "Unassigned"}
               </span>
             </div>
 
-            <div className="p-4 rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 shadow-2xs">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Collisions</span>
-              <p className="text-2xl font-bold text-emerald-700 mt-1">0</p>
-              <span className="text-[10px] text-emerald-700 font-medium">Zero Clashes</span>
+            <div className="p-4 rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 shadow-2xs hover:border-slate-300 transition">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Collisions</span>
+              <p className="text-3xl font-black font-mono text-slate-900 mt-1">0</p>
+              <span className="text-[10px] text-emerald-700 font-bold">Zero Clashes</span>
             </div>
           </div>
+
+          {/* Allocation Warnings & Notices Banner */}
+          {warnings.length > 0 && (
+            <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 shadow-2xs space-y-1.5">
+              <div className="font-bold text-xs text-amber-900 flex items-center gap-2">
+                <span>Algorithm Allocation Notices</span>
+              </div>
+              <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-amber-800">
+                {warnings.map((w, idx) => (
+                  <li key={idx}>{w}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Question Paper Security & Branch Breakdown Card */}
           <div className="p-4 rounded-2xl bg-white/60 backdrop-blur-xl border-white/60 border border-slate-200 shadow-2xs space-y-3">
@@ -667,7 +1008,7 @@ export default function RootAllocationPage() {
                     : "Multi-Exam Question Paper Security Distribution"}
                 </span>
               </div>
-              <span className="text-[10px] font-medium text-slate-500">
+              <span className="text-[10px] font-bold text-slate-500">
                 {examType === "SEM" ? "Single Student / Bench" : "Zero Neighbor Exam Overlap"}
               </span>
             </div>
@@ -682,10 +1023,10 @@ export default function RootAllocationPage() {
                 {Object.entries(qpBreakdown).map(([code, count]) => {
                   const ex = exams.find((e) => e.subject_code === code);
                   return (
-                    <div key={code} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                      <div className="font-bold text-slate-900">{code}</div>
+                    <div key={code} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition">
+                      <div className="font-mono font-bold text-xs text-blue-700">{code}</div>
                       <div className="text-[10px] text-slate-500 truncate">{ex?.subject_name || "Department Paper"}</div>
-                      <div className="text-xs font-semibold text-slate-800 mt-1">{count} Question Papers</div>
+                      <div className="text-xs font-black font-mono text-slate-900 mt-1">{count} Question Papers</div>
                     </div>
                   );
                 })}
@@ -693,10 +1034,10 @@ export default function RootAllocationPage() {
             ) : departmentalExams.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 text-xs">
                 {departmentalExams.map((exam) => (
-                  <div key={exam.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                    <div className="font-bold text-slate-900">{exam.subject_code}</div>
+                  <div key={exam.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition">
+                    <div className="font-mono font-bold text-xs text-blue-700">{exam.subject_code}</div>
                     <div className="text-[10px] text-slate-500 truncate">{exam.subject_name}</div>
-                    <div className="text-xs font-semibold text-slate-800 mt-1">{exam.enrolled_students_count} Candidates</div>
+                    <div className="text-xs font-black font-mono text-slate-900 mt-1">{exam.enrolled_students_count} Candidates</div>
                   </div>
                 ))}
               </div>
@@ -708,31 +1049,84 @@ export default function RootAllocationPage() {
           </div>
 
           {/* Room Switcher Tabs */}
-          <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
-            {rooms.map((room) => {
-              const isActive = activeRoomId === room.id;
-              const isSem = currentMatrix?.examType === "SEM" || examType === "SEM";
-              const effectiveCapacity = isSem ? 24 : room.capacity;
-              return (
-                <button
-                  key={room.id}
-                  onClick={() => setActiveRoomId(room.id)}
-                  className={`px-4 py-2 rounded-xl text-xs font-semibold transition whitespace-nowrap ${
-                    isActive
-                      ? "bg-blue-700 text-white shadow-xs font-bold"
-                      : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 hover:text-slate-900 border border-slate-300 hover:bg-slate-50 shadow-2xs"
-                  }`}
-                >
-                  Room {room.room_number} (Block {room.block} • {effectiveCapacity} Seats{isSem ? " • SEM 1/Bench" : ""})
-                </button>
-              );
-            })}
+          <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto no-scrollbar">
+            {rooms.filter((r) => selectedRoomIds.length === 0 || selectedRoomIds.includes(r.id)).length === 0 ? (
+              <span className="text-xs text-slate-400 italic py-1">No halls selected. Choose halls above to view seating.</span>
+            ) : (
+              rooms
+                .filter((r) => selectedRoomIds.length === 0 || selectedRoomIds.includes(r.id))
+                .map((room) => {
+                  const isActive = activeRoomId === room.id;
+                  const isSem = currentMatrix?.examType === "SEM" || examType === "SEM";
+                  const effectiveCapacity = isSem ? 24 : room.capacity;
+                  return (
+                    <button
+                      key={room.id}
+                      onClick={() => setActiveRoomId(room.id)}
+                      className={`px-4 py-2 rounded-xl text-xs font-semibold transition whitespace-nowrap touch-target ${
+                        isActive
+                          ? "bg-blue-700 text-white shadow-xs font-bold"
+                          : "bg-white/60 backdrop-blur-xl border-white/60 text-slate-700 hover:text-slate-900 border border-slate-300 hover:bg-slate-50 shadow-2xs"
+                      }`}
+                    >
+                      Room {room.room_number} (Block {room.block} • {effectiveCapacity} Seats{isSem ? " • SEM 1/Bench" : ""})
+                    </button>
+                  );
+                })
+            )}
           </div>
         </div>
       </div>
 
       {/* Visual Seating Layout */}
-      <div className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-5 shadow-xs">
+      <div className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-4 sm:p-5 shadow-xs space-y-4">
+        {/* Room Header & Invigilator Assignment Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+          <div>
+            <div className="flex items-center gap-2">
+              <DoorOpen className="h-5 w-5 text-slate-700" />
+              <h2 className="text-base font-bold text-slate-900">
+                {activeRoom ? `Room ${activeRoom.room_number} (${activeRoom.block})` : "Examination Hall"}
+              </h2>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                examType === "SEM"
+                  ? "bg-purple-100 text-purple-700 border border-purple-200"
+                  : "bg-blue-100 text-blue-700 border border-blue-200"
+              }`}>
+                {examType === "SEM" ? "SEM Single-Seater (24)" : "MID Dual-Seater (48)"}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Floor {activeRoom?.floor || 1} • {activeRoom?.total_benches || 24} Benches • {currentMatrix?.allocatedCount || 0} Candidates Seated
+            </p>
+          </div>
+
+          {/* Assigned Invigilator Badge & Change Button */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs">
+              <Users className="h-3.5 w-3.5 text-slate-600" />
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block leading-none">Hall Supervisor</span>
+                <span className="font-semibold text-slate-800">
+                  {activeRoomInvigilator ? (
+                    `${activeRoomInvigilator.name} (${activeRoomInvigilator.department_code || "Faculty"})`
+                  ) : (
+                    <span className="text-amber-600 font-medium">Unassigned (Standby)</span>
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={openInvigModal}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold border border-blue-200 shadow-2xs transition touch-target"
+            >
+              <Users className="h-3.5 w-3.5" />
+              <span>Change Supervisor</span>
+            </button>
+          </div>
+        </div>
+
         {currentMatrix && currentMatrix.allocatedCount > 0 ? (
           <RoomSeatingGrid
             matrix={currentMatrix}
@@ -753,6 +1147,207 @@ export default function RootAllocationPage() {
           </div>
         )}
       </div>
+
+      {/* Manual Invigilator Assignment Modal */}
+      {isInvigModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-blue-600" />
+                <h3 className="font-bold text-slate-900 text-sm">
+                  Supervisor Duty — Room {activeRoom?.room_number} ({activeRoom?.block})
+                </h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowQuickRegister(false);
+                  setIsInvigModalOpen(false);
+                }}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Current Hall Supervisor Status Card */}
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-3 text-xs">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block leading-none">
+                  Current Hall Status
+                </span>
+                <div className="font-bold text-slate-900 mt-1">
+                  {activeRoomInvigilator ? (
+                    <div className="flex items-center gap-1.5 text-blue-800">
+                      <Shield className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                      <span>{activeRoomInvigilator.name} ({activeRoomInvigilator.faculty_id})</span>
+                    </div>
+                  ) : (
+                    <span className="text-amber-700 font-bold">⚠️ On HOLD (No Supervisor Assigned)</span>
+                  )}
+                </div>
+              </div>
+
+              {activeRoomInvigilator && (
+                <button
+                  type="button"
+                  disabled={isAssigningInvig}
+                  onClick={handleHoldSupervisor}
+                  className="px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[11px] flex items-center gap-1 transition"
+                  title="Put current supervisor on hold / unassign hall"
+                >
+                  <PauseCircle className="h-3.5 w-3.5" />
+                  <span>Put on HOLD</span>
+                </button>
+              )}
+            </div>
+
+            {/* Reassign From Standby Dropdown */}
+            <div className="space-y-2 text-xs">
+              <label className="font-bold text-slate-700 block">
+                Assign from Registered Faculty Pool
+              </label>
+              <select
+                value={selectedInvigId}
+                onChange={(e) => setSelectedInvigId(Number(e.target.value))}
+                className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-slate-50"
+              >
+                <option value={0}>-- Put on Standby (Unassigned / HOLD) --</option>
+                {invigilators.map((inv) => (
+                  <option key={inv.id} value={inv.id}>
+                    {inv.name} ({inv.department_code || "Faculty"} • {inv.faculty_id}){" "}
+                    {inv.assigned_room ? `[Currently: ${inv.assigned_room}]` : "[Standby / Free]"}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Quick Register Accordion Button */}
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setShowQuickRegister(!showQuickRegister)}
+                className="w-full flex items-center justify-between p-2.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800 text-xs font-bold transition"
+              >
+                <span className="flex items-center gap-1.5">
+                  <UserPlus className="h-4 w-4 text-blue-600" />
+                  <span>+ Quick Register New Faculty (Shortage Solution)</span>
+                </span>
+                <span className="text-blue-600 font-mono text-[11px]">
+                  {showQuickRegister ? "▲ Hide" : "▼ Expand Form"}
+                </span>
+              </button>
+            </div>
+
+            {/* Quick Register On-the-Fly Form */}
+            {showQuickRegister && (
+              <form
+                onSubmit={handleQuickRegisterAndAssign}
+                className="p-3.5 rounded-xl border border-blue-200 bg-blue-50/50 space-y-2.5 text-xs animate-in fade-in duration-200"
+              >
+                <div className="font-bold text-blue-950 text-xs flex items-center justify-between">
+                  <span>Register & Assign Immediately to Room {activeRoom?.room_number}</span>
+                  <span className="text-[10px] text-blue-600 font-normal">Default pwd: Faculty@123</span>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 block">Faculty Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Dr. Rajesh Verma"
+                    value={quickInv.name}
+                    onChange={(e) => setQuickInv({ ...quickInv, name: e.target.value })}
+                    className="mt-1 w-full p-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="font-semibold text-slate-700 block">Faculty ID</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="FAC-MECH-009"
+                      value={quickInv.facultyId}
+                      onChange={(e) => setQuickInv({ ...quickInv, facultyId: e.target.value })}
+                      className="mt-1 w-full p-2 rounded-lg border border-slate-200 bg-white uppercase focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-semibold text-slate-700 block">Department</label>
+                    <select
+                      value={quickInv.departmentCode}
+                      onChange={(e) => setQuickInv({ ...quickInv, departmentCode: e.target.value })}
+                      className="mt-1 w-full p-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="CSE">CSE</option>
+                      <option value="ECE">ECE</option>
+                      <option value="EEE">EEE</option>
+                      <option value="MECH">MECH</option>
+                      <option value="CIVIL">CIVIL</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="font-semibold text-slate-700 block">Designation</label>
+                    <input
+                      type="text"
+                      placeholder="Assistant Professor"
+                      value={quickInv.designation}
+                      onChange={(e) => setQuickInv({ ...quickInv, designation: e.target.value })}
+                      className="mt-1 w-full p-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-semibold text-slate-700 block">Phone</label>
+                    <input
+                      type="text"
+                      placeholder="+91 98765 43210"
+                      value={quickInv.phone}
+                      onChange={(e) => setQuickInv({ ...quickInv, phone: e.target.value })}
+                      className="mt-1 w-full p-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isRegisteringQuick}
+                  className="w-full py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs disabled:opacity-50 transition mt-1"
+                >
+                  {isRegisteringQuick
+                    ? "Registering & Assigning..."
+                    : `Register & Assign to Room ${activeRoom?.room_number}`}
+                </button>
+              </form>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowQuickRegister(false);
+                  setIsInvigModalOpen(false);
+                }}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isAssigningInvig}
+                onClick={handleAssignRoomInvigilator}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs disabled:opacity-50 transition"
+              >
+                {isAssigningInvig ? "Saving Duty..." : "Confirm Duty Assignment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

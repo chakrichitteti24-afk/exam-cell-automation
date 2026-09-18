@@ -4,6 +4,8 @@ from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
 from app.core.config import settings
 
+from sqlalchemy.pool import NullPool
+
 # Common engine kwargs
 engine_kwargs = {
     "pool_pre_ping": True,
@@ -13,12 +15,29 @@ engine_kwargs = {
 if settings.DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False, "timeout": 15}
     engine_kwargs["connect_args"] = connect_args
+elif "neon.tech" in settings.DATABASE_URL or "pooler" in settings.DATABASE_URL:
+    # Neon Serverless PgBouncer: Use NullPool to avoid stale client connections when Neon scales or cycles sockets
+    engine_kwargs["poolclass"] = NullPool
+    engine_kwargs["connect_args"] = {
+        "connect_timeout": 15,
+        "keepalives": 1,
+        "keepalives_idle": 30,
+        "keepalives_interval": 10,
+        "keepalives_count": 5
+    }
 else:
-    # High concurrency pooling for PostgreSQL (Neon)
-    engine_kwargs["pool_size"] = 20
-    engine_kwargs["max_overflow"] = 40
+    # High concurrency pooling for standard PostgreSQL
+    engine_kwargs["pool_size"] = 15
+    engine_kwargs["max_overflow"] = 30
     engine_kwargs["pool_timeout"] = 30
-    engine_kwargs["pool_recycle"] = 1800 # Recycle connections every 30 mins
+    engine_kwargs["pool_recycle"] = 300
+    engine_kwargs["connect_args"] = {
+        "connect_timeout": 10,
+        "keepalives": 1,
+        "keepalives_idle": 30,
+        "keepalives_interval": 10,
+        "keepalives_count": 5
+    }
 
 # SQLAlchemy 2.0 Engine
 engine = create_engine(

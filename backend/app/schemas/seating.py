@@ -5,6 +5,7 @@ class AllocationGenerateRequest(BaseModel):
     exam_id: Optional[int] = None
     exam_ids: Optional[List[int]] = None
     room_ids: Optional[List[int]] = None
+    department_codes: Optional[List[str]] = None
     exam_type: Optional[str] = None # MID (2 per bench) or SEM (1 per bench)
     exam_subdivision: Optional[str] = None # MID_1, MID_2, REGULAR, SUPPLEMENTARY
     strategy: str = "STRICT_ALTERNATE_BRANCH" # STRICT_ALTERNATE_BRANCH

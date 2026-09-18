@@ -2,16 +2,12 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Users,
   Search,
-  Filter,
   Plus,
   UploadCloud,
-  FileSpreadsheet,
   Download,
   CheckCircle2,
   Trash2,
-  Edit2,
   X,
   ChevronLeft,
   ChevronRight,
@@ -77,7 +73,27 @@ export default function RootStudentsPage() {
   };
 
   useEffect(() => {
-    loadData();
+    let ignore = false;
+    async function init() {
+      try {
+        const [stList, deptList] = await Promise.all([
+          api.students.list({ limit: 500 }),
+          api.departments.list().catch(() => []),
+        ]);
+        if (!ignore) {
+          setStudents(stList);
+          setDepartments(deptList);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Failed to fetch students:", err);
+        if (!ignore) setLoading(false);
+      }
+    }
+    init();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const filteredStudents = students.filter((s) => {
@@ -114,7 +130,7 @@ export default function RootStudentsPage() {
       await api.students.create({
         name: formData.name.trim(),
         roll_number: formData.rollNumber.trim().toUpperCase(),
-        email: formData.email.trim() || `${formData.rollNumber.trim().toLowerCase()}@student.gkce.edu.in`,
+        email: formData.email.trim() || `${formData.rollNumber.trim().toLowerCase()}@gkce.edu.in`,
         department_id: deptId,
         semester: Number(formData.semester),
         section: formData.section,
@@ -212,10 +228,10 @@ export default function RootStudentsPage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
           <button
             onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-300 bg-white/60 backdrop-blur-xl border-white/60 text-xs font-semibold text-slate-800 hover:bg-slate-50 shadow-2xs transition"
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white/60 backdrop-blur-xl border-white/60 text-xs font-semibold text-slate-800 hover:bg-slate-50 shadow-2xs transition touch-target w-full sm:w-auto"
           >
             <UploadCloud className="h-3.5 w-3.5 text-blue-700" />
             Import CSV
@@ -225,7 +241,7 @@ export default function RootStudentsPage() {
               setFormError("");
               setIsAddModalOpen(true);
             }}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold shadow-sm transition"
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold shadow-sm transition touch-target w-full sm:w-auto"
           >
             <Plus className="h-3.5 w-3.5" />
             Add Student
@@ -234,7 +250,7 @@ export default function RootStudentsPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white/60 backdrop-blur-xl border-white/60 p-3 rounded-2xl border border-slate-200 shadow-xs">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white/60 backdrop-blur-xl border-white/60 p-3 rounded-2xl border border-slate-200 shadow-xs">
         <div className="relative w-full sm:w-80">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
           <input
@@ -249,7 +265,7 @@ export default function RootStudentsPage() {
           />
         </div>
 
-        <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto">
+        <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto no-scrollbar pb-1 sm:pb-0">
           <span className="text-xs text-slate-400 font-medium whitespace-nowrap">Branch:</span>
           {["ALL", "CSE", "ECE", "EEE", "MECH", "CIVIL"].map((branch) => (
             <button
@@ -258,7 +274,7 @@ export default function RootStudentsPage() {
                 setSelectedBranch(branch);
                 setCurrentPage(1);
               }}
-              className={`px-3 py-1.5 text-xs rounded-xl font-semibold transition whitespace-nowrap ${
+              className={`px-3 py-1.5 text-xs rounded-xl font-semibold transition whitespace-nowrap touch-target ${
                 selectedBranch === branch
                   ? "bg-blue-600 text-white shadow-xs"
                   : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/60"
@@ -273,7 +289,7 @@ export default function RootStudentsPage() {
       {/* Students Data Table */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full min-w-[650px] text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/70 font-bold text-slate-700">
                 <th className="py-3 px-4">Roll Number</th>
@@ -330,7 +346,7 @@ export default function RootStudentsPage() {
                           onClick={() => handleDeleteStudent(student)}
                           disabled={deletingId === student.id}
                           title="Delete student"
-                          className="inline-flex items-center justify-center h-7 w-7 rounded-lg border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:border-rose-300 transition disabled:opacity-40"
+                          className="inline-flex items-center justify-center h-7 w-7 rounded-lg border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:border-rose-300 transition disabled:opacity-40 touch-target"
                         >
                           {deletingId === student.id ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -354,7 +370,7 @@ export default function RootStudentsPage() {
         </div>
 
         {/* Pagination Controls */}
-        <div className="p-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+        <div className="p-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
           <div>
             Showing <span className="font-bold">{paginatedStudents.length}</span> of{" "}
             <span className="font-bold">{filteredStudents.length}</span> students
@@ -364,17 +380,17 @@ export default function RootStudentsPage() {
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="p-1 rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition"
+              className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition touch-target"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="font-mono font-bold text-slate-700">
+            <span className="font-mono font-bold text-slate-700 px-1">
               {currentPage} / {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="p-1 rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition"
+              className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 transition touch-target"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -385,7 +401,7 @@ export default function RootStudentsPage() {
       {/* Add Student Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white/60 backdrop-blur-xl border-white/60 border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+          <div className="bg-white/95 backdrop-blur-xl border-white/60 border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-slate-900">
                 Register New Student

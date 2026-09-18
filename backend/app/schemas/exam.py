@@ -28,10 +28,12 @@ class ExamLaunchRequest(BaseModel):
     exam_id: Optional[int] = None
     exam_ids: Optional[List[int]] = None
     room_ids: Optional[List[int]] = None
+    department_codes: Optional[List[str]] = None
     exam_type: Optional[str] = None # MID or SEM (overrides exam setting if provided)
     exam_subdivision: Optional[str] = None # MID_1, MID_2, REGULAR, SUPPLEMENTARY
     strategy: Optional[str] = "MULTI_BRANCH_MIXING"
     arrangement_direction: Optional[str] = "COLUMN_WISE"
+    auto_assign_invigilators: Optional[bool] = True
 
 class DutyRosterItem(BaseModel):
     room_id: int

@@ -26,6 +26,8 @@ htmlcov/
 # Database files
 *.db
 *.sqlite3
+*.db-shm
+*.db-wal
 backend/*.db
 gkce_exam_cell.db
 
@@ -33,6 +35,9 @@ gkce_exam_cell.db
 .env
 .env*.local
 *.pem
+CREDENTIALS.md
+backend/*.json
+backend/*.tsv
 
 # IDE & OS files
 .DS_Store

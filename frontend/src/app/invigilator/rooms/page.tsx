@@ -7,8 +7,6 @@ import {
   ShieldAlert,
   Lock,
   CheckCircle2,
-  Users,
-  Search,
 } from "lucide-react";
 import { RoomSeatingGrid } from "@/components/seating/RoomSeatingGrid";
 import { api, ApiDutyAssignment, ApiRoom, mapApiMatrixToRoomMatrix } from "@/lib/api";
@@ -21,11 +19,9 @@ export default function InvigilatorRoomsPage() {
   const [matrix, setMatrix] = useState<RoomSeatingMatrix | null>(null);
   const [isAccessDenied, setIsAccessDenied] = useState(false);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState("");
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function init() {
-      setLoading(true);
       try {
         const [rmList, dutyList] = await Promise.all([
           api.rooms.list(),
@@ -41,8 +37,6 @@ export default function InvigilatorRoomsPage() {
         }
       } catch (err) {
         console.error("Failed to load rooms or duties:", err);
-      } finally {
-        setLoading(false);
       }
     }
     init();
@@ -107,7 +101,7 @@ export default function InvigilatorRoomsPage() {
             <button
               key={room.id}
               onClick={() => setSelectedRoomId(room.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+              className={`flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition touch-target w-full sm:w-auto ${
                 isSelected
                   ? isDutyRoom
                     ? "bg-blue-600 text-white shadow-xs"
@@ -128,7 +122,7 @@ export default function InvigilatorRoomsPage() {
 
       {/* Authorization Check Enforcement */}
       {!isAccessDenied && matrix ? (
-        <div className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-5 shadow-xs">
+        <div className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-4 sm:p-5 shadow-xs">
           <div className="flex items-center gap-2 mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs">
             <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
             <span>

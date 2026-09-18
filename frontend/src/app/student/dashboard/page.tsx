@@ -23,6 +23,8 @@ import { api, ApiStudentDeskSlip } from "@/lib/api";
 export default function StudentDashboardPage() {
   const { user } = useAuth();
   const [deskSlip, setDeskSlip] = useState<ApiStudentDeskSlip | null>(null);
+  const [allSlips, setAllSlips] = useState<ApiStudentDeskSlip[]>([]);
+  const [selectedSlipIdx, setSelectedSlipIdx] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -32,11 +34,14 @@ export default function StudentDashboardPage() {
       setLoading(true);
       try {
         const slips = await api.allocation.getMyDeskSlip();
-        // Dashboard shows the primary (first) active allocation
-        setDeskSlip(Array.isArray(slips) && slips.length > 0 ? slips[0] : null);
+        const validSlips = Array.isArray(slips) ? slips : [];
+        setAllSlips(validSlips);
+        setDeskSlip(validSlips.length > 0 ? validSlips[0] : null);
+        setSelectedSlipIdx(0);
       } catch (err) {
         console.warn("Could not retrieve candidate desk slip:", err);
         setDeskSlip(null);
+        setAllSlips([]);
       } finally {
         setLoading(false);
       }
@@ -64,7 +69,6 @@ export default function StudentDashboardPage() {
   const candidateDept = deskSlip?.department_code || user?.metadata?.department || "N/A";
 
   const myBenchNum = deskSlip?.bench_number || 0;
-  const mySeatNum = deskSlip?.seat_number || 0;
   const myRow = deskSlip?.row_index || Math.floor((myBenchNum - 1) / 4) + 1;
   const myCol = deskSlip?.col_index || ((myBenchNum - 1) % 4) + 1;
   const hallRows = [1, 2, 3, 4, 5, 6];
@@ -102,12 +106,12 @@ export default function StudentDashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
           {deskSlip && (
             <>
               <button
                 onClick={handleCopyToken}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition touch-target sm:touch-auto"
               >
                 {copied ? <Check className="h-3.5 w-3.5 text-blue-600" /> : <Copy className="h-3.5 w-3.5 text-slate-400" />}
                 <span>{copied ? "Copied Token" : "Copy Token"}</span>
@@ -115,7 +119,7 @@ export default function StudentDashboardPage() {
               <button
                 onClick={handlePrint}
                 disabled={downloading}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm shadow-blue-500/20 transition"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm shadow-blue-500/20 transition touch-target sm:touch-auto"
               >
                 <Printer className="h-3.5 w-3.5" />
                 <span>{downloading ? "Preparing Print..." : "Print Hall Pass"}</span>
@@ -124,6 +128,29 @@ export default function StudentDashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Multi-Exam Switcher Bar if student has multiple active allocations */}
+      {allSlips.length > 1 && (
+        <div className="flex items-center gap-2 p-2 rounded-2xl bg-white/60 backdrop-blur-xl border border-slate-200 overflow-x-auto shadow-xs print:hidden">
+          <span className="text-xs font-bold text-slate-500 px-2 shrink-0">Your Active Exams:</span>
+          {allSlips.map((s, idx) => (
+            <button
+              key={s.exam_id}
+              onClick={() => {
+                setSelectedSlipIdx(idx);
+                setDeskSlip(s);
+              }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition shrink-0 ${
+                selectedSlipIdx === idx
+                  ? "bg-blue-600 text-white shadow-xs"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              }`}
+            >
+              {s.subject_code} • {s.subject_name} ({s.exam_date})
+            </button>
+          ))}
+        </div>
+      )}
 
       {loading ? (
         <div className="p-16 text-center space-y-3 rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 shadow-xs">
@@ -187,7 +214,7 @@ export default function StudentDashboardPage() {
                         {deskSlip.department_code}
                       </span>
                     </div>
-                    <div className="font-mono font-bold text-slate-900 text-sm mt-0.5">
+                    <div className="font-mono font-bold text-slate-900 text-base mt-0.5">
                       {candidateRoll}
                     </div>
                   </div>
@@ -197,12 +224,12 @@ export default function StudentDashboardPage() {
               <div className="border-t border-slate-100 pt-3 space-y-1.5 text-xs">
                 <div className="flex justify-between text-slate-500">
                   <span>Semester / Batch:</span>
-                  <span className="font-semibold text-slate-900">Semester {deskSlip.semester} • {deskSlip.academic_year}</span>
+                  <span className="font-bold text-slate-900">Semester {deskSlip.semester} • {deskSlip.academic_year}</span>
                 </div>
                 <div className="flex justify-between text-slate-500">
                   <span>Biometric Duty:</span>
-                  <span className="font-semibold text-slate-900 flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3 text-slate-700" /> Verified Candidate
+                  <span className="font-bold text-emerald-700 flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Verified Candidate
                   </span>
                 </div>
               </div>
@@ -215,7 +242,7 @@ export default function StudentDashboardPage() {
                   <MapPin className="h-3.5 w-3.5 text-slate-700" />
                   Assigned Hall Coordinates
                 </span>
-                <span className="text-[11px] font-mono font-semibold text-slate-500">
+                <span className="text-[11px] font-mono font-bold text-slate-700">
                   Row {myRow} • Col {myCol}
                 </span>
               </div>
@@ -223,52 +250,52 @@ export default function StudentDashboardPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {/* ROOM */}
                 <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-center">
-                  <span className="text-[10px] font-bold uppercase text-slate-500 block">
+                  <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider block">
                     ROOM
                   </span>
-                  <div className="text-3xl font-black text-slate-900 font-mono my-0.5">
+                  <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono my-0.5">
                     {deskSlip.room_number}
                   </div>
-                  <span className="text-[10px] text-slate-500 font-medium">
+                  <span className="text-[10px] text-slate-500 font-semibold">
                     Floor {deskSlip.floor}
                   </span>
                 </div>
 
                 {/* BLOCK */}
                 <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-center">
-                  <span className="text-[10px] font-bold uppercase text-slate-500 block">
+                  <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider block">
                     BLOCK
                   </span>
-                  <div className="text-3xl font-black text-slate-900 font-mono my-0.5">
+                  <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono my-0.5">
                     {deskSlip.block}
                   </div>
-                  <span className="text-[10px] text-slate-500 font-medium">
+                  <span className="text-[10px] text-slate-500 font-semibold">
                     Main Campus
                   </span>
                 </div>
 
                 {/* BENCH */}
-                <div className="p-3.5 rounded-xl border-2 border-blue-600 bg-blue-600 text-white text-center shadow-sm shadow-blue-500/20">
-                  <span className="text-[10px] font-bold uppercase text-blue-100 block">
+                <div className="p-3.5 rounded-xl border-2 border-blue-600 bg-blue-50/50 text-center">
+                  <span className="text-[10px] font-black uppercase text-blue-700 tracking-wider block">
                     BENCH
                   </span>
-                  <div className="text-3xl font-black font-mono my-0.5">
+                  <div className="text-3xl sm:text-4xl font-black font-mono my-0.5 text-blue-700">
                     {String(deskSlip.bench_number).padStart(2, "0")}
                   </div>
-                  <span className="text-[10px] text-blue-100 font-medium">
+                  <span className="text-[10px] text-blue-700 font-bold">
                     Assigned Desk
                   </span>
                 </div>
 
                 {/* SEAT */}
                 <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-center">
-                  <span className="text-[10px] font-bold uppercase text-slate-500 block">
+                  <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider block">
                     SEAT
                   </span>
-                  <div className="text-3xl font-black text-slate-900 font-mono my-0.5">
+                  <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono my-0.5">
                     0{deskSlip.seat_number}
                   </div>
-                  <span className="text-[10px] text-slate-500 font-medium">
+                  <span className="text-[10px] text-slate-500 font-semibold">
                     {deskSlip.seat_number === 1 ? "Left Position" : "Right Position"}
                   </span>
                 </div>
@@ -422,18 +449,25 @@ export default function StudentDashboardPage() {
                 </div>
               </div>
 
-              {/* 2. Column Headers Aligned with Benches */}
-              <div className="flex items-center gap-1.5 sm:gap-2 mb-2">
-                <div className="shrink-0 w-6 sm:w-7 text-center font-mono text-[9px] font-bold text-slate-400">
-                  ROW
-                </div>
-                <div className="flex-1 grid grid-cols-4 gap-1.5 sm:gap-3 text-center font-mono text-[10px] font-bold text-slate-500">
-                  <div className="py-1 rounded bg-slate-50 border border-slate-100">Col 1 <span className="font-normal text-slate-400 hidden sm:inline">(Left)</span></div>
-                  <div className="py-1 rounded bg-slate-50 border border-slate-100">Col 2 <span className="font-normal text-slate-400 hidden sm:inline">(Center-L)</span></div>
-                  <div className="py-1 rounded bg-slate-50 border border-slate-100">Col 3 <span className="font-normal text-slate-400 hidden sm:inline">(Center-R)</span></div>
-                  <div className="py-1 rounded bg-slate-50 border border-slate-100">Col 4 <span className="font-normal text-slate-400 hidden sm:inline">(Window)</span></div>
-                </div>
+              {/* Mobile Swipe Guide Banner */}
+              <div className="sm:hidden text-center text-[11px] text-blue-700 bg-blue-50 border border-blue-200 py-1.5 px-2 rounded-xl mb-3 flex items-center justify-center gap-1.5 font-semibold">
+                <span>← Swipe across floorplan to inspect all 4 columns →</span>
               </div>
+
+              {/* 2. Column Headers Aligned with Benches (Horizontal Scroll Safe on Mobile) */}
+              <div className="overflow-x-auto pb-2 -mx-1 px-1 no-scrollbar sm:overflow-visible">
+                <div className="min-w-[480px] sm:min-w-0">
+                  <div className="flex items-center gap-1.5 sm:gap-2 mb-2">
+                    <div className="shrink-0 w-6 sm:w-7 text-center font-mono text-[9px] font-bold text-slate-400">
+                      ROW
+                    </div>
+                    <div className="flex-1 grid grid-cols-4 gap-1.5 sm:gap-3 text-center font-mono text-[10px] font-bold text-slate-500">
+                      <div className="py-1 rounded bg-slate-50 border border-slate-100">Col 1 <span className="font-normal text-slate-400 hidden sm:inline">(Left)</span></div>
+                      <div className="py-1 rounded bg-slate-50 border border-slate-100">Col 2 <span className="font-normal text-slate-400 hidden sm:inline">(Center-L)</span></div>
+                      <div className="py-1 rounded bg-slate-50 border border-slate-100">Col 3 <span className="font-normal text-slate-400 hidden sm:inline">(Center-R)</span></div>
+                      <div className="py-1 rounded bg-slate-50 border border-slate-100">Col 4 <span className="font-normal text-slate-400 hidden sm:inline">(Window)</span></div>
+                    </div>
+                  </div>
 
               {/* 3. 24 Benches arranged in 6 Rows x 4 Columns */}
               <div className="space-y-2 sm:space-y-2.5">
@@ -564,6 +598,8 @@ export default function StudentDashboardPage() {
                 </span>
               </div>
             </div>
+          </div>
+        </div>
 
             {/* Hall Navigation Directive */}
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">

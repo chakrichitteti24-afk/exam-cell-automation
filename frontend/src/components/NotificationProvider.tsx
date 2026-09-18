@@ -8,6 +8,15 @@ export default function NotificationProvider({ children }: { children: React.Rea
   const [showPrompt, setShowPrompt] = useState(false);
   const [toast, setToast] = useState<{ title: string; body: string } | null>(null);
 
+  const triggerForegroundAlert = (payload: { title: string; body: string; vibrate?: number[] }) => {
+    // Vibrate device natively if tab is open
+    if ("vibrate" in navigator) {
+      navigator.vibrate(payload.vibrate || [300, 100, 300, 100, 300]);
+    }
+    setToast({ title: payload.title, body: payload.body });
+    setTimeout(() => setToast(null), 8000);
+  };
+
   useEffect(() => {
     const init = async () => {
       // 1. Check Service Worker
@@ -46,15 +55,6 @@ export default function NotificationProvider({ children }: { children: React.Rea
       // Cleanup if needed
     };
   }, []);
-
-  const triggerForegroundAlert = (payload: any) => {
-    // Vibrate device natively if tab is open
-    if ("vibrate" in navigator) {
-      navigator.vibrate(payload.vibrate || [300, 100, 300, 100, 300]);
-    }
-    setToast({ title: payload.title, body: payload.body });
-    setTimeout(() => setToast(null), 8000);
-  };
 
   const handleAllow = async () => {
     setShowPrompt(false);

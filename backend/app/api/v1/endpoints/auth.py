@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import time
+from collections import defaultdict
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select, or_
 from app.db.session import get_db
+from app.core.config import settings
 from app.core.security import verify_password, create_access_token
 from app.api.deps import get_current_user
 from app.models.user import User
@@ -10,16 +13,36 @@ from app.schemas.auth import LoginRequest, TokenResponse, UserResponse
 
 router = APIRouter()
 
+# In-memory sliding-window rate limiter for brute-force protection
+_login_attempts = defaultdict(list)
+_RATE_LIMIT_WINDOW = 60  # seconds
+
 @router.post("/login", response_model=TokenResponse)
 def login_for_access_token(
     payload: LoginRequest,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
     Authenticate a user (ROOT, INVIGILATOR, or STUDENT) and return a signed JWT.
     Supports login via institutional email, username, or Student roll number.
+    Rate limited to prevent credential brute-forcing.
     """
     clean_id = payload.identifier.strip()
+    
+    # Rate limit check per IP and identifier
+    client_ip = request.client.host if request.client else "unknown"
+    rate_key = f"{client_ip}:{clean_id.lower()}"
+    now = time.time()
+    
+    # Filter attempts within window
+    _login_attempts[rate_key] = [t for t in _login_attempts[rate_key] if now - t < _RATE_LIMIT_WINDOW]
+    if len(_login_attempts[rate_key]) >= settings.LOGIN_RATE_LIMIT_PER_MINUTE:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many authentication attempts. Please wait 60 seconds before retrying."
+        )
+    _login_attempts[rate_key].append(now)
     
     # 1. Search directly in users table by email or username
     user = db.execute(
@@ -64,6 +87,9 @@ def login_for_access_token(
         role=user.role,
         extra_claims={"email": user.email, "role": user.role}
     )
+
+    # Clear rate limit counter on successful login
+    _login_attempts.pop(rate_key, None)
 
     return TokenResponse(
         access_token=access_token,

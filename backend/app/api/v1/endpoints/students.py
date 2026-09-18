@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, or_
 from app.db.session import get_db
 from app.api.deps import require_role
+from app.core.config import settings
 from app.core.security import get_password_hash
 from app.models.user import User
 from app.models.academic import Student, Department
@@ -44,17 +45,20 @@ def list_students(
     stmt = stmt.offset(skip).limit(limit)
     students = db.execute(stmt).scalars().all()
 
+    # Pre-fetch all departments to avoid N+1 query over the network
+    all_depts = db.execute(select(Department)).scalars().all()
+    dept_map = {d.id: d.code for d in all_depts}
+
     # Enrich with department code
     results = []
     for s in students:
-        dept = db.execute(select(Department).where(Department.id == s.department_id)).scalar_one_or_none()
         results.append(
             StudentResponse(
                 id=s.id,
                 roll_number=s.roll_number,
                 name=s.name,
                 department_id=s.department_id,
-                department_code=dept.code if dept else None,
+                department_code=dept_map.get(s.department_id),
                 semester=s.semester,
                 section=s.section,
                 academic_year=s.academic_year,
@@ -79,9 +83,17 @@ def create_student(
     if existing:
         raise HTTPException(status_code=400, detail=f"Student with roll number '{payload.roll_number}' already exists.")
 
-    if not payload.password:
-        raise HTTPException(status_code=400, detail="Password is required when creating a student account.")
-    hashed = get_password_hash(payload.password)
+    raw_password = payload.password if payload.password else "gkce@1234"
+    hashed = get_password_hash(raw_password)
+
+    # Check if user email or username already exists
+    existing_user_email = db.execute(select(User).where(User.email == payload.email)).scalar_one_or_none()
+    if existing_user_email:
+        raise HTTPException(status_code=400, detail=f"Email '{payload.email}' is already in use by another account.")
+        
+    existing_username = db.execute(select(User).where(User.username == payload.roll_number)).scalar_one_or_none()
+    if existing_username:
+        raise HTTPException(status_code=400, detail=f"Username '{payload.roll_number}' is already in use by another account.")
 
     # Create User account
     user = User(
@@ -135,16 +147,31 @@ async def import_students_from_file(
     Returns imported count, skipped count, errors, and temporary credentials.
     Restricted to ROOT administrators.
     """
-    contents = await file.read()
     filename = file.filename.lower() if file.filename else ""
-    
+    if not (filename.endswith(".csv") or filename.endswith(".xlsx") or filename.endswith(".xls")):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid file format. Only .csv, .xlsx, and .xls files are supported."
+        )
+
+    # Enforce maximum upload size to mitigate memory exhaustion DoS
+    max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    contents = await file.read(max_bytes + 1)
+    if len(contents) > max_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File exceeds maximum allowed size of {settings.MAX_UPLOAD_SIZE_MB}MB."
+        )
     try:
         if filename.endswith(".xlsx") or filename.endswith(".xls"):
             df = pd.read_excel(io.BytesIO(contents))
         else:
             df = pd.read_csv(io.BytesIO(contents))
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to parse file: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to parse tabular file data. Please ensure it is a valid CSV or Excel file."
+        )
 
     total_records = len(df)
     imported = 0
@@ -156,6 +183,35 @@ async def import_students_from_file(
     departments = db.execute(select(Department)).scalars().all()
     dept_map = {d.code.upper(): d.id for d in departments}
 
+    # Pre-extract candidate roll numbers and emails to bulk fetch existing records
+    candidate_rolls = set()
+    candidate_emails = set()
+    for _, row in df.iterrows():
+        r = str(row.get("roll_number", "")).strip().upper()
+        em = str(row.get("email", f"{r.lower()}@student.gkce.edu.in")).strip()
+        if r:
+            candidate_rolls.add(r)
+        if em:
+            candidate_emails.add(em)
+
+    # Bulk fetch existing records in 3 fast indexed queries
+    existing_rolls = set(
+        db.execute(select(Student.roll_number).where(Student.roll_number.in_(candidate_rolls))).scalars().all()
+    ) if candidate_rolls else set()
+
+    existing_user_names = set(
+        db.execute(select(User.username).where(User.username.in_(candidate_rolls))).scalars().all()
+    ) if candidate_rolls else set()
+
+    existing_user_emails = set(
+        db.execute(select(User.email).where(User.email.in_(candidate_emails))).scalars().all()
+    ) if candidate_emails else set()
+
+    seen_rolls = set()
+    seen_emails = set()
+
+    import secrets
+
     for idx, row in df.iterrows():
         try:
             roll = str(row.get("roll_number", "")).strip().upper()
@@ -163,33 +219,35 @@ async def import_students_from_file(
             dept_code = str(row.get("department", "CSE")).strip().upper()
             sem = int(row.get("semester", 5))
             sec = str(row.get("section", "A")).strip()
-            email_val = str(row.get("email", f"{roll.lower()}@student.gkce.edu.in")).strip()
+            email_val = str(row.get("email", f"{roll.lower()}@gkce.edu.in")).strip()
             acad_year = str(row.get("academic_year", "2026-2027")).strip()
 
             if not roll or not name:
                 skipped += 1
                 continue
 
-            # Skip if roll number already exists
-            exists = db.execute(select(Student).where(Student.roll_number == roll)).scalar_one_or_none()
-            if exists:
+            # Skip if roll number already exists in DB or current import batch
+            if roll in existing_rolls or roll in seen_rolls:
                 skipped += 1
                 errors.append(f"Row {idx+2}: Roll number '{roll}' already exists — skipped.")
                 continue
 
-            # Skip if email already exists in users
-            email_exists = db.execute(select(User).where(User.email == email_val)).scalar_one_or_none()
-            if email_exists:
+            # Skip if email or username already exists in users table or current batch
+            if email_val in existing_user_emails or email_val in seen_emails:
                 skipped += 1
                 errors.append(f"Row {idx+2}: Email '{email_val}' already registered — skipped.")
+                continue
+
+            if roll in existing_user_names:
+                skipped += 1
+                errors.append(f"Row {idx+2}: Username '{roll}' already registered — skipped.")
                 continue
 
             dept_id = dept_map.get(dept_code)
             if not dept_id:
                 dept_id = dept_map.get("CSE", 1)
 
-            import secrets
-            temp_pw = secrets.token_urlsafe(12)
+            temp_pw = "gkce@1234"
 
             # Create User
             user = User(
@@ -213,6 +271,8 @@ async def import_students_from_file(
                 email=email_val
             )
             db.add(student)
+            seen_rolls.add(roll)
+            seen_emails.add(email_val)
             credentials.append({"roll_number": roll, "email": email_val, "temp_password": temp_pw})
             imported += 1
         except Exception as row_err:
@@ -238,16 +298,37 @@ def delete_student(
     Permanently remove a student record and their linked user account.
     Restricted to ROOT administrators.
     """
+    from sqlalchemy import delete as sql_delete
+    from app.models.seating import StudentAllocation, AttendanceRecord
+    from app.models.exam import ExamStudent
+    from app.models.push_subscription import PushSubscription
+
     student = db.execute(select(Student).where(Student.id == student_id)).scalar_one_or_none()
     if not student:
         raise HTTPException(status_code=404, detail=f"Student with ID {student_id} not found.")
 
-    # Remove linked user account
-    if student.user_id:
-        user = db.execute(select(User).where(User.id == student.user_id)).scalar_one_or_none()
+    # 1. Clean up attendance records
+    db.execute(sql_delete(AttendanceRecord).where(AttendanceRecord.student_id == student.id))
+    
+    # 2. Clean up allocations
+    db.execute(sql_delete(StudentAllocation).where(StudentAllocation.student_id == student.id))
+
+    # 3. Clean up exam registrations
+    db.execute(sql_delete(ExamStudent).where(ExamStudent.student_id == student.id))
+
+    # Save user_id to delete after the student record is removed
+    user_id_to_delete = student.user_id
+
+    # 4. Delete student (child record referencing User)
+    db.delete(student)
+    
+    # 5. Remove linked user account and related push subscriptions
+    if user_id_to_delete:
+        db.execute(sql_delete(PushSubscription).where(PushSubscription.user_id == user_id_to_delete))
+        user = db.execute(select(User).where(User.id == user_id_to_delete)).scalar_one_or_none()
         if user:
             db.delete(user)
 
-    db.delete(student)
     db.commit()
-    return {"message": f"Student '{student.name}' ({student.roll_number}) and their user account have been permanently removed."}
+
+    return {"message": "Student and all associated records permanently deleted."}

@@ -8,11 +8,11 @@ class StudentAllocation(Base):
     __tablename__ = "student_allocations"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    exam_id: Mapped[int] = mapped_column(ForeignKey("exams.id"), nullable=False)
-    student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), nullable=False)
-    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"), nullable=False)
-    bench_id: Mapped[int] = mapped_column(ForeignKey("benches.id"), nullable=False)
-    seat_id: Mapped[int] = mapped_column(ForeignKey("seats.id"), nullable=False)
+    exam_id: Mapped[int] = mapped_column(ForeignKey("exams.id"), nullable=False, index=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), nullable=False, index=True)
+    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"), nullable=False, index=True)
+    bench_id: Mapped[int] = mapped_column(ForeignKey("benches.id"), nullable=False, index=True)
+    seat_id: Mapped[int] = mapped_column(ForeignKey("seats.id"), nullable=False, index=True)
     allocated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
@@ -31,9 +31,9 @@ class InvigilatorAllocation(Base):
     __tablename__ = "invigilator_allocations"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    exam_id: Mapped[int] = mapped_column(ForeignKey("exams.id"), nullable=False)
-    invigilator_id: Mapped[int] = mapped_column(ForeignKey("invigilators.id"), nullable=False)
-    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"), nullable=False)
+    exam_id: Mapped[int] = mapped_column(ForeignKey("exams.id"), nullable=False, index=True)
+    invigilator_id: Mapped[int] = mapped_column(ForeignKey("invigilators.id"), nullable=False, index=True)
+    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"), nullable=False, index=True)
     assigned_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
@@ -49,11 +49,11 @@ class AttendanceRecord(Base):
     __tablename__ = "attendance_records"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    exam_id: Mapped[int] = mapped_column(ForeignKey("exams.id"), nullable=False)
-    student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), nullable=False)
-    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"), nullable=False)
+    exam_id: Mapped[int] = mapped_column(ForeignKey("exams.id"), nullable=False, index=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), nullable=False, index=True)
+    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"), nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(50), default="PRESENT") # PRESENT, ABSENT, MALPRACTICE
-    marked_by_invigilator_id: Mapped[Optional[int]] = mapped_column(ForeignKey("invigilators.id"), nullable=True)
+    marked_by_invigilator_id: Mapped[Optional[int]] = mapped_column(ForeignKey("invigilators.id"), nullable=True, index=True)
     marked_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (

@@ -1,10 +1,10 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from pydantic import BaseModel, ConfigDict
 
 class RoomBase(BaseModel):
     room_number: str
     block: str = "Block A"
-    floor: str = "1st Floor"
+    floor: Union[str, int] = "1st Floor"
     total_benches: int = 24
     seats_per_bench: int = 2
     capacity: int = 48
@@ -15,7 +15,7 @@ class RoomCreate(RoomBase):
 
 class RoomUpdate(BaseModel):
     block: Optional[str] = None
-    floor: Optional[str] = None
+    floor: Optional[Union[str, int]] = None
     total_benches: Optional[int] = None
     seats_per_bench: Optional[int] = None
     status: Optional[str] = None
@@ -44,3 +44,11 @@ class RoomResponse(RoomBase):
 
 class RoomLayoutResponse(RoomResponse):
     benches: List[BenchInfo] = []
+
+class RoomBatchDeleteRequest(BaseModel):
+    room_ids: List[int]
+
+class RoomBatchDeleteResponse(BaseModel):
+    message: str
+    deleted_count: int
+    deleted_ids: List[int]

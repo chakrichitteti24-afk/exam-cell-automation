@@ -7,7 +7,6 @@ import {
   Clock,
   DoorOpen,
   Users,
-  CheckCircle2,
   ArrowRight,
   Hourglass,
 } from "lucide-react";
@@ -99,7 +98,7 @@ export default function InvigilatorExamsPage() {
 
                 <Link
                   href={`/invigilator/rooms/${duty.room_id}?exam_id=${duty.exam_id}`}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm shadow-blue-200 transition self-start md:self-auto"
+                  className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm shadow-blue-200 transition touch-target w-full sm:w-auto"
                 >
                   <span>Open Room Seating Chart</span>
                   <ArrowRight className="h-3.5 w-3.5" />

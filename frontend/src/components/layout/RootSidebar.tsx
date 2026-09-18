@@ -15,7 +15,6 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Menu,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";

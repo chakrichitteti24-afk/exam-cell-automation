@@ -1,19 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
 import {
   DoorOpen,
   Calendar,
   Clock,
   Users,
   ShieldCheck,
-  CheckCircle2,
-  AlertTriangle,
   UserCheck,
-  UserX,
   FileCheck2,
-  ArrowRight,
 } from "lucide-react";
 import { BentoGrid, BentoCard } from "@/components/ui/bento-grid";
 import { RoomSeatingGrid } from "@/components/seating/RoomSeatingGrid";
@@ -130,7 +125,7 @@ export default function InvigilatorDashboardPage() {
 
         <button
           onClick={handleSubmitAttendance}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm shadow-blue-200 transition self-start md:self-auto"
+          className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm shadow-blue-200 transition touch-target w-full sm:w-auto"
         >
           <FileCheck2 className="h-4 w-4" />
           {attendanceSubmitted ? "Attendance Saved!" : "Submit Attendance Sheet"}
@@ -163,10 +158,10 @@ export default function InvigilatorDashboardPage() {
                 </p>
               </div>
               <div className="text-right">
-                <span className="text-xl font-bold text-blue-600 font-mono">
+                <span className="text-2xl font-black text-slate-900 font-mono">
                   Room {duty?.room_number || "---"}
                 </span>
-                <span className="text-xs text-gray-400 block">{duty?.block || "---"}</span>
+                <span className="text-xs text-slate-600 font-semibold block">{duty?.block || "---"}</span>
               </div>
             </div>
 
@@ -191,23 +186,23 @@ export default function InvigilatorDashboardPage() {
           subtitle="Live headcount"
           icon={<UserCheck className="h-4 w-4" />}
           badge={
-            <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full font-mono">
               {totalSeats > 0 ? ((presentCount / totalSeats) * 100).toFixed(0) : 100}%
             </span>
           }
         >
           <div className="mt-2">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-4xl font-bold text-gray-900">{presentCount}</span>
-              <span className="text-xs text-gray-400">/ {totalSeats}</span>
+              <span className="text-4xl font-black text-slate-900 font-mono">{presentCount}</span>
+              <span className="text-xs font-mono font-bold text-gray-400">/ {totalSeats}</span>
             </div>
             <div className="flex items-center justify-between text-xs mt-1">
-              <span className="text-gray-500 font-medium">{presentCount} Present</span>
-              <span className="text-red-500 font-semibold">{absentCount} Absent</span>
+              <span className="text-emerald-700 font-bold font-mono">{presentCount} Present</span>
+              <span className="text-rose-600 font-bold font-mono">{absentCount} Absent</span>
             </div>
-            <div className="mt-2 w-full h-1.5 rounded-full bg-gray-100">
+            <div className="mt-2 w-full h-1.5 rounded-full bg-gray-100 overflow-hidden">
               <div
-                className="h-1.5 rounded-full bg-blue-500 transition-all"
+                className="h-1.5 rounded-full bg-blue-600 transition-all"
                 style={{ width: totalSeats > 0 ? `${(presentCount / totalSeats) * 100}%` : "100%" }}
               />
             </div>
@@ -222,16 +217,16 @@ export default function InvigilatorDashboardPage() {
           subtitle="Physical layout"
           icon={<Users className="h-4 w-4" />}
           badge={
-            <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full font-mono">
               {matrix ? matrix.benches.length : 24} Benches
             </span>
           }
         >
           <div className="mt-2">
-            <p className="text-4xl font-bold text-gray-900">
+            <p className="text-4xl font-black text-slate-900 font-mono">
               {totalSeats}
             </p>
-            <p className="text-[11px] text-gray-400 mt-1">
+            <p className="text-[11px] text-gray-500 font-medium mt-1">
               2 seats / bench · cross-branch mixed
             </p>
           </div>
@@ -239,7 +234,7 @@ export default function InvigilatorDashboardPage() {
       </BentoGrid>
 
       {/* Seating Arrangement Matrix */}
-      <div className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-5 shadow-xs space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-xl border-white/60 p-4 sm:p-5 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
           <div>
             <h2 className="text-base font-bold text-slate-900">

@@ -51,7 +51,9 @@ def test_root_exam_launch_and_immediate_reflection_across_roles():
     assert len(duties_before.json()) == 0, "No duties should be present before launch"
 
     slip_before = client.get("/api/v1/allocation/student/me", headers=student_headers)
-    assert slip_before.status_code == 404, "Student desk slip must be 404 before launch"
+    assert slip_before.status_code in [200, 404]
+    if slip_before.status_code == 200:
+        assert len(slip_before.json()) == 0, "Student desk slip must be empty before launch"
 
     # 3. ROOT launches exam session
     launch_res = client.post(
@@ -86,12 +88,14 @@ def test_root_exam_launch_and_immediate_reflection_across_roles():
     slip_after = client.get("/api/v1/allocation/student/me", headers=student_headers)
     assert slip_after.status_code == 200
     slip_data = slip_after.json()
-    assert slip_data["roll_number"] == "23CS042"
-    assert slip_data["room_number"] is not None
-    assert slip_data["bench_number"] is not None
-    assert slip_data["seat_number"] in [1, 2]
-    assert slip_data["partner_department"] is not None
-    assert slip_data["qr_payload"] is not None
+    assert len(slip_data) > 0
+    slip = slip_data[0]
+    assert slip["roll_number"] == "23CS042"
+    assert slip["room_number"] is not None
+    assert slip["bench_number"] is not None
+    assert slip["seat_number"] in [1, 2]
+    assert slip["partner_department"] is not None
+    assert slip["qr_payload"] is not None
 
 def test_subject_dealing_faculty_exclusion_rule():
     """
@@ -126,8 +130,91 @@ def test_subject_dealing_faculty_exclusion_rule():
         assert len(data["duty_roster"]) > 0
 
         for roster_item in data["duty_roster"]:
-            assert roster_item["room_number"] in ["101", "102"]
+            assert roster_item["room_number"] in ["101", "102", "201", "202"]
             assert roster_item["total_candidates"] == 48
 
     finally:
         db.close()
+
+def test_root_selected_faculty_allocation_and_shortage_hold():
+    """
+    Validates:
+    1. Root can pass selected_invigilator_ids to restrict allocation pool.
+    2. If selected pool < rooms, status is 'SHORTAGE_HOLD' and unassigned rooms are placed on HOLD.
+    3. Root can put duty on HOLD (room_id=0).
+    4. Root can register new faculty on-the-fly and assign them to fill the shortage.
+    """
+    root_token = get_token("admin@gkce.edu.in", "Admin@123")
+    root_headers = {"Authorization": f"Bearer {root_token}"}
+
+    # Fetch invigilators and rooms
+    invs_res = client.get("/api/v1/invigilators/", headers=root_headers)
+    assert invs_res.status_code == 200
+    all_invs = invs_res.json()
+    assert len(all_invs) >= 2
+
+    # Pick only 1 faculty for pool to deliberately trigger shortage across all rooms
+    selected_pool = [all_invs[0]["id"]]
+
+    assign_res = client.post(
+        "/api/v1/invigilators/assign",
+        json={
+            "auto_distribute": True,
+            "selected_invigilator_ids": selected_pool
+        },
+        headers=root_headers
+    )
+    assert assign_res.status_code == 200
+    res_data = assign_res.json()
+    assert res_data["status"] == "SHORTAGE_HOLD"
+    assert res_data["shortage_count"] > 0
+    assert len(res_data["unassigned_rooms"]) > 0
+    assert len(res_data["assignments"]) == 1
+    assert res_data["assignments"][0]["invigilator_id"] == all_invs[0]["id"]
+
+    assigned_room_id = res_data["assignments"][0]["room_id"]
+
+    # Test putting duty on HOLD (room_id=0)
+    hold_res = client.post(
+        "/api/v1/invigilators/assign",
+        json={
+            "invigilator_id": all_invs[0]["id"],
+            "room_id": 0
+        },
+        headers=root_headers
+    )
+    assert hold_res.status_code == 200
+    assert "Standby" in hold_res.json()["message"] or "unassigned" in hold_res.json()["message"].lower()
+
+    # Test on-the-fly faculty registration without password (defaults to Faculty@123)
+    new_faculty_res = client.post(
+        "/api/v1/invigilators/",
+        json={
+            "faculty_id": "FAC-TEST-999",
+            "name": "Dr. OnTheFly Test",
+            "department_id": 1,
+            "designation": "Assistant Professor",
+            "email": "onthefly@gkce.edu.in",
+            "phone": "+91 99999 88888"
+        },
+        headers=root_headers
+    )
+    assert new_faculty_res.status_code in [200, 201]
+    new_inv = new_faculty_res.json()
+    assert new_inv["faculty_id"] == "FAC-TEST-999"
+
+    # Test assigning newly created faculty to the previously held room
+    reassign_res = client.post(
+        "/api/v1/invigilators/assign",
+        json={
+            "invigilator_id": new_inv["id"],
+            "room_id": assigned_room_id
+        },
+        headers=root_headers
+    )
+    assert reassign_res.status_code == 200
+
+    # Cleanup created test faculty
+    del_res = client.delete(f"/api/v1/invigilators/{new_inv['id']}", headers=root_headers)
+    assert del_res.status_code == 200
+

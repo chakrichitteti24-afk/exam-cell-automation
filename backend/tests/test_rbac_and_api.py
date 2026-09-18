@@ -7,6 +7,10 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.main import app
+from app.db.session import SessionLocal
+from app.models.exam import Exam
+from app.models.infrastructure import Room
+from app.models.academic import Invigilator
 
 client = TestClient(app)
 
@@ -60,16 +64,28 @@ def test_initial_state_allocation_is_null_and_auto_allots_on_generate():
     assert sum_res.json()["total_students_allocated"] == 0
     assert sum_res.json()["branch_mixing_compliance_percent"] == 0.0
 
-    # 3. Student desk slip returns 404 when allocation is NULL
+    # 3. Student desk slip returns empty list when allocation is NULL
     st_res = client.get("/api/v1/allocation/student/me", headers=student_headers)
-    assert st_res.status_code == 404
+    assert st_res.status_code == 200
+    assert len(st_res.json()) == 0
 
     # 4. ROOT runs SeatingEngine (Auto-Allot Seats)
+    db = SessionLocal()
+    mat_exam = db.query(Exam).filter(Exam.subject_code == "MAT301").first()
+    room_101 = db.query(Room).filter(Room.room_number == "101").first()
+    room_102 = db.query(Room).filter(Room.room_number == "102").first()
+    assert mat_exam and room_101 and room_102
+    exam_id = mat_exam.id
+    r101_id = room_101.id
+    r102_id = room_102.id
+    db.close()
+
     gen_res = client.post(
         "/api/v1/allocation/generate",
         json={
-            "exam_id": 1,
-            "room_ids": [1, 2],
+            "exam_id": exam_id,
+            "room_ids": [r101_id, r102_id],
+            "department_codes": ["CSE", "ECE", "CIVIL"],
             "strategy": "MULTI_BRANCH_MIXING",
             "arrangement_direction": "COLUMN_WISE"
         },
@@ -88,7 +104,9 @@ def test_initial_state_allocation_is_null_and_auto_allots_on_generate():
     # 6. Student now gets their desk slip
     st_after = client.get("/api/v1/allocation/student/me", headers=student_headers)
     assert st_after.status_code == 200
-    assert st_after.json()["bench_number"] is not None
+    slips_after = st_after.json()
+    assert len(slips_after) > 0
+    assert slips_after[0]["bench_number"] is not None
 
 def test_student_desk_slip_and_isolation():
     """
@@ -103,7 +121,9 @@ def test_student_desk_slip_and_isolation():
     # 1. Fetch Desk Slip
     res = client.get("/api/v1/allocation/student/me", headers=headers)
     assert res.status_code == 200, res.text
-    data = res.json()
+    slips = res.json()
+    assert len(slips) > 0, "Candidate must have at least one desk slip"
+    data = slips[0]
     assert data["roll_number"] == "23CS042"
     assert data["student_name"] == "Aarav Patel"
     assert data["department_code"] == "CSE"
@@ -124,11 +144,37 @@ def test_invigilator_sandboxing():
     - CANNOT access Room 102 (gets 403 Forbidden).
     - CAN mark attendance in Room 101.
     """
+    root_token = get_token("admin@gkce.edu.in", "Admin@123")
+    root_headers = {"Authorization": f"Bearer {root_token}"}
+
     inv_token = get_token("prof.sharma@gkce.edu.in", "Faculty@123")
     headers = {"Authorization": f"Bearer {inv_token}"}
 
+    db = SessionLocal()
+    mat_exam = db.query(Exam).filter(Exam.subject_code == "MAT301").first()
+    room_101 = db.query(Room).filter(Room.room_number == "101").first()
+    room_102 = db.query(Room).filter(Room.room_number == "102").first()
+    inv_sharma = db.query(Invigilator).filter(Invigilator.email == "prof.sharma@gkce.edu.in").first()
+    assert mat_exam and room_101 and room_102 and inv_sharma
+    exam_id = mat_exam.id
+    r101_id = room_101.id
+    r102_id = room_102.id
+    inv_id = inv_sharma.id
+    db.close()
+
+    # Assign Dr. Sharma to Room 101 for MAT301
+    client.post(
+        "/api/v1/invigilators/assign",
+        json={
+            "invigilator_id": inv_id,
+            "room_id": r101_id,
+            "exam_id": exam_id
+        },
+        headers=root_headers
+    )
+
     # 1. Fetch Room 101 seating matrix (Assigned room -> 200 OK)
-    res_101 = client.get("/api/v1/allocation/room/1/exam/1", headers=headers)
+    res_101 = client.get(f"/api/v1/allocation/room/{r101_id}/exam/{exam_id}", headers=headers)
     assert res_101.status_code == 200, res_101.text
     data_101 = res_101.json()
     assert data_101["room_number"] == "101"
@@ -136,7 +182,7 @@ def test_invigilator_sandboxing():
     assert data_101["mixing_compliance_percent"] == 100.0
 
     # 2. Fetch Room 102 seating matrix (Unassigned room -> 403 Forbidden)
-    res_102 = client.get("/api/v1/allocation/room/2/exam/1", headers=headers)
+    res_102 = client.get(f"/api/v1/allocation/room/{r102_id}/exam/{exam_id}", headers=headers)
     assert res_102.status_code == 403, f"Invigilator must be blocked from unassigned room: {res_102.text}"
 
     # 3. Mark attendance in Room 101 (Seat 1 candidate)
@@ -146,8 +192,8 @@ def test_invigilator_sandboxing():
     att_res = client.post(
         "/api/v1/attendance/mark",
         json={
-            "exam_id": 1,
-            "room_id": 1,
+            "exam_id": exam_id,
+            "room_id": r101_id,
             "student_id": student_id,
             "status": "PRESENT"
         },
@@ -159,9 +205,9 @@ def test_invigilator_sandboxing():
 def test_strict_resource_authorization_no_data_leakage():
     """
     Validates:
-    1. Invigilator can access door notice for assigned Room 1, but is strictly blocked (403) from Room 2.
-    2. Invigilator can access attendance summary for assigned Room 1, but is blocked (403) from Room 2.
-    3. Invigilator can access room layout for assigned Room 1, but is blocked (403) from Room 2.
+    1. Invigilator can access door notice for assigned Room 101, but is strictly blocked (403) from Room 102.
+    2. Invigilator can access attendance summary for assigned Room 101, but is blocked (403) from Room 102.
+    3. Invigilator can access room layout for assigned Room 101, but is blocked (403) from Room 102.
     4. Invigilator is blocked (403) from Root-only global summary (/api/v1/allocation/summary).
     5. Root can access all rooms and global summary.
     """
@@ -171,25 +217,35 @@ def test_strict_resource_authorization_no_data_leakage():
     root_token = get_token("admin@gkce.edu.in", "Admin@123")
     root_headers = {"Authorization": f"Bearer {root_token}"}
 
+    db = SessionLocal()
+    mat_exam = db.query(Exam).filter(Exam.subject_code == "MAT301").first()
+    room_101 = db.query(Room).filter(Room.room_number == "101").first()
+    room_102 = db.query(Room).filter(Room.room_number == "102").first()
+    assert mat_exam and room_101 and room_102
+    exam_id = mat_exam.id
+    r101_id = room_101.id
+    r102_id = room_102.id
+    db.close()
+
     # 1. Door Notice: assigned vs unassigned
-    dn_assigned = client.get("/api/v1/allocation/reports/door-notice/1/exam/1", headers=inv_headers)
+    dn_assigned = client.get(f"/api/v1/allocation/reports/door-notice/{r101_id}/exam/{exam_id}", headers=inv_headers)
     assert dn_assigned.status_code == 200, dn_assigned.text
 
-    dn_unassigned = client.get("/api/v1/allocation/reports/door-notice/2/exam/1", headers=inv_headers)
+    dn_unassigned = client.get(f"/api/v1/allocation/reports/door-notice/{r102_id}/exam/{exam_id}", headers=inv_headers)
     assert dn_unassigned.status_code == 403, "Invigilator must be blocked from unassigned room door notice"
 
     # 2. Attendance Summary: assigned vs unassigned
-    att_assigned = client.get("/api/v1/attendance/exam/1/room/1", headers=inv_headers)
+    att_assigned = client.get(f"/api/v1/attendance/exam/{exam_id}/room/{r101_id}", headers=inv_headers)
     assert att_assigned.status_code == 200, att_assigned.text
 
-    att_unassigned = client.get("/api/v1/attendance/exam/1/room/2", headers=inv_headers)
+    att_unassigned = client.get(f"/api/v1/attendance/exam/{exam_id}/room/{r102_id}", headers=inv_headers)
     assert att_unassigned.status_code == 403, "Invigilator must be blocked from unassigned room attendance summary"
 
     # 3. Room Layout: assigned vs unassigned
-    layout_assigned = client.get("/api/v1/rooms/1", headers=inv_headers)
+    layout_assigned = client.get(f"/api/v1/rooms/{r101_id}", headers=inv_headers)
     assert layout_assigned.status_code == 200, layout_assigned.text
 
-    layout_unassigned = client.get("/api/v1/rooms/2", headers=inv_headers)
+    layout_unassigned = client.get(f"/api/v1/rooms/{r102_id}", headers=inv_headers)
     assert layout_unassigned.status_code == 403, "Invigilator must be blocked from unassigned room layout"
 
     # 4. Global summary: Invigilator blocked, Root allowed
@@ -198,4 +254,58 @@ def test_strict_resource_authorization_no_data_leakage():
 
     sum_root = client.get("/api/v1/allocation/summary", headers=root_headers)
     assert sum_root.status_code == 200, sum_root.text
+
+def test_root_room_add_and_delete_rbac():
+    """
+    Validates that:
+    1. ROOT user has full access to add a new room (POST /api/v1/rooms/).
+    2. ROOT user has full access to delete an existing room (DELETE /api/v1/rooms/{id}).
+    3. Invigilator is strictly blocked (403 Forbidden) from creating or deleting rooms.
+    4. Student is strictly blocked (403 Forbidden) from creating or deleting rooms.
+    """
+    root_token = get_token("admin@gkce.edu.in", "Admin@123")
+    root_headers = {"Authorization": f"Bearer {root_token}"}
+
+    inv_token = get_token("prof.sharma@gkce.edu.in", "Faculty@123")
+    inv_headers = {"Authorization": f"Bearer {inv_token}"}
+
+    stu_token = get_token("23CS042", "Student@123")
+    stu_headers = {"Authorization": f"Bearer {stu_token}"}
+
+    new_room_payload = {
+        "room_number": "505",
+        "block": "Block C",
+        "floor": 3,
+        "total_benches": 12,
+        "seats_per_bench": 2,
+        "status": "AVAILABLE"
+    }
+
+    # 1. Non-root users blocked from creating rooms
+    res_inv_create = client.post("/api/v1/rooms/", json=new_room_payload, headers=inv_headers)
+    assert res_inv_create.status_code == 403, "Invigilator must be blocked from creating rooms"
+
+    res_stu_create = client.post("/api/v1/rooms/", json=new_room_payload, headers=stu_headers)
+    assert res_stu_create.status_code == 403, "Student must be blocked from creating rooms"
+
+    # 2. ROOT user successfully creates room
+    res_root_create = client.post("/api/v1/rooms/", json=new_room_payload, headers=root_headers)
+    assert res_root_create.status_code == 201, res_root_create.text
+    created_room = res_root_create.json()
+    assert created_room["room_number"] == "505"
+    assert created_room["capacity"] == 24
+    room_id = created_room["id"]
+
+    # 3. Non-root users blocked from deleting rooms
+    res_inv_delete = client.delete(f"/api/v1/rooms/{room_id}", headers=inv_headers)
+    assert res_inv_delete.status_code == 403, "Invigilator must be blocked from deleting rooms"
+
+    res_stu_delete = client.delete(f"/api/v1/rooms/{room_id}", headers=stu_headers)
+    assert res_stu_delete.status_code == 403, "Student must be blocked from deleting rooms"
+
+    # 4. ROOT user successfully deletes room
+    res_root_delete = client.delete(f"/api/v1/rooms/{room_id}", headers=root_headers)
+    assert res_root_delete.status_code == 200, res_root_delete.text
+    assert "permanently deleted" in res_root_delete.json()["message"]
+
 

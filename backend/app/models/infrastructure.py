@@ -24,7 +24,7 @@ class Bench(Base):
     __tablename__ = "benches"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"), nullable=False)
+    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"), nullable=False, index=True)
     bench_number: Mapped[int] = mapped_column(Integer, nullable=False) # 1 to 24
     row_index: Mapped[int] = mapped_column(Integer, default=1)
     col_index: Mapped[int] = mapped_column(Integer, default=1)
@@ -41,7 +41,7 @@ class Seat(Base):
     __tablename__ = "seats"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    bench_id: Mapped[int] = mapped_column(ForeignKey("benches.id"), nullable=False)
+    bench_id: Mapped[int] = mapped_column(ForeignKey("benches.id"), nullable=False, index=True)
     seat_number: Mapped[int] = mapped_column(Integer, nullable=False) # 1 or 2
     seat_label: Mapped[str] = mapped_column(String(50), default="Seat 01")
 
